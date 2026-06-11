@@ -28,13 +28,7 @@ function redirectPagesDevToCustomDomain(req) {
     return Response.redirect(targetUrl, 301);
 }
 
-export default auth(async (req) => {
-    const pagesDevRedirect = redirectPagesDevToCustomDomain(req);
-
-    if (pagesDevRedirect) {
-        return pagesDevRedirect;
-    }
-
+const protectedRoutesMiddleware = auth(async (req) => {
     const { nextUrl } = req;
 
     // console.log(req?.auth?.user?.role);
@@ -89,6 +83,16 @@ export default auth(async (req) => {
     }
 
 })
+
+export default function middleware(req, event) {
+    const pagesDevRedirect = redirectPagesDevToCustomDomain(req);
+
+    if (pagesDevRedirect) {
+        return pagesDevRedirect;
+    }
+
+    return protectedRoutesMiddleware(req, event);
+}
 
 // 使用静态 matcher 配置
 export const config = {
