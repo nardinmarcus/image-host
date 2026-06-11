@@ -1,6 +1,8 @@
 import { auth } from "@/auth"
 
 
+const PAGES_DEV_HOST = "img-bnp.pages.dev";
+const CUSTOM_DOMAIN_ORIGIN = "https://image.namooca.com";
 const ROOT = '/';
 const PUBLIC_ROUTES = ['/'];
 const DEFAULT_REDIRECT = '/login';
@@ -10,7 +12,29 @@ const ADMIN_PAGE = "/admin"
 const AUTH_API = "/api/enableauthapi"
 const enableAuthapi = process.env.ENABLE_AUTH_API === 'true';
 
+function isPagesDevHost(hostname) {
+    return hostname === PAGES_DEV_HOST || hostname.endsWith(`.${PAGES_DEV_HOST}`);
+}
+
+function redirectPagesDevToCustomDomain(req) {
+    const { nextUrl } = req;
+
+    if (!isPagesDevHost(nextUrl.hostname)) {
+        return null;
+    }
+
+    const targetUrl = new URL(nextUrl.pathname + nextUrl.search, CUSTOM_DOMAIN_ORIGIN);
+
+    return Response.redirect(targetUrl, 301);
+}
+
 export default auth(async (req) => {
+    const pagesDevRedirect = redirectPagesDevToCustomDomain(req);
+
+    if (pagesDevRedirect) {
+        return pagesDevRedirect;
+    }
+
     const { nextUrl } = req;
 
     // console.log(req?.auth?.user?.role);
@@ -69,6 +93,16 @@ export default auth(async (req) => {
 // 使用静态 matcher 配置
 export const config = {
     matcher: [
+        {
+            source: "/:path*",
+            has: [
+                {
+                    type: "header",
+                    key: "host",
+                    value: "(.+\\.)?img-bnp\\.pages\\.dev"
+                }
+            ]
+        },
         "/admin/:path*",
         "/api/admin/:path*",
         "/api/enableauthapi/:path*"
