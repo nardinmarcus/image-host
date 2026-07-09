@@ -75,7 +75,15 @@ function toPage(v) {
   return Number.isInteger(n) && n >= 0 ? n : 0;
 }
 
-function buildImgFilters(query, filters = {}, urlColumn = 'url') {
+function buildImgFilters(query, filters = {}, columns = {}) {
+  const {
+    urlColumn = 'url',
+    kindColumn = 'kind',
+    mimeColumn = 'mime',
+    ratingColumn = 'rating',
+    sizeColumn = 'size_bytes',
+    metadataStatusColumn = 'metadata_status',
+  } = columns;
   const where = [];
   const binds = [];
 
@@ -90,20 +98,20 @@ function buildImgFilters(query, filters = {}, urlColumn = 'url') {
 
   const kindClause = kindFilterSql(filters.kind, {
     urlColumn,
-    kindColumn: 'kind',
-    mimeColumn: 'mime',
+    kindColumn,
+    mimeColumn,
   });
   if (kindClause.sql) {
     where.push(kindClause.sql);
     binds.push(...kindClause.binds);
   }
 
-  if (filters.blocked === 'yes') where.push('rating = 3');
-  else if (filters.blocked === 'no') where.push('(rating IS NULL OR rating != 3)');
+  if (filters.blocked === 'yes') where.push(`${ratingColumn} = 3`);
+  else if (filters.blocked === 'no') where.push(`(${ratingColumn} IS NULL OR ${ratingColumn} != 3)`);
 
-  if (filters.metadata === 'missing_size') where.push('size_bytes IS NULL');
-  else if (filters.metadata === 'unclassified') where.push('(kind IS NULL OR kind = \'\')');
-  else if (filters.metadata === 'failed') where.push("metadata_status = 'failed'");
+  if (filters.metadata === 'missing_size') where.push(`${sizeColumn} IS NULL`);
+  else if (filters.metadata === 'unclassified') where.push(`(${kindColumn} IS NULL OR ${kindColumn} = '')`);
+  else if (filters.metadata === 'failed') where.push(`${metadataStatusColumn} = 'failed'`);
 
   const sqlWhere = where.length ? `WHERE ${where.join(' AND ')}` : '';
   return { sqlWhere, binds };
@@ -179,23 +187,30 @@ export async function deleteImgInfo(env, url) {
 
 export async function searchImgInfo(env, query, page, filters = {}) {
   const offset = toPage(page) * PAGE_SIZE;
-  const { sqlWhere, binds } = buildImgFilters(query, filters, 'imginfo.url');
+  const { sqlWhere, binds } = buildImgFilters(query, filters, {
+    urlColumn: 'media.url',
+    kindColumn: 'media.kind',
+    mimeColumn: 'media.mime',
+    ratingColumn: 'media.rating',
+    sizeColumn: 'media.size_bytes',
+    metadataStatusColumn: 'media.metadata_status',
+  });
   const logTime = normalizedTimeSql('tgimglog.time');
   const sortSql = {
-    newest: 'imginfo.id DESC',
-    views: 'COALESCE(imginfo.total, 0) DESC, imginfo.id DESC',
-    accessed: `datetime(MAX(${logTime})) DESC, imginfo.id DESC`,
-    size: 'imginfo.size_bytes IS NULL ASC, imginfo.size_bytes DESC, imginfo.id DESC',
-    inactive: `datetime(MAX(${logTime})) ASC, imginfo.id DESC`,
-  }[filters.sort] || 'imginfo.id DESC';
-  const listSql = `SELECT imginfo.*, MAX(${logTime}) AS last_accessed_at
-    FROM imginfo
-    LEFT JOIN tgimglog ON tgimglog.url = imginfo.url
+    newest: 'media.id DESC',
+    views: 'COALESCE(media.total, 0) DESC, media.id DESC',
+    accessed: `datetime(MAX(${logTime})) DESC, media.id DESC`,
+    size: 'media.size_bytes IS NULL ASC, media.size_bytes DESC, media.id DESC',
+    inactive: `datetime(MAX(${logTime})) ASC, media.id DESC`,
+  }[filters.sort] || 'media.id DESC';
+  const listSql = `SELECT media.*, MAX(${logTime}) AS last_accessed_at
+    FROM ${managedAssetRows} AS media
+    LEFT JOIN tgimglog ON tgimglog.url = media.url
     ${sqlWhere}
-    GROUP BY imginfo.id
+    GROUP BY media.id
     ORDER BY ${sortSql}
     LIMIT ? OFFSET ?`;
-  const countSql = `SELECT COUNT(*) as total FROM imginfo ${sqlWhere}`;
+  const countSql = `SELECT COUNT(*) as total FROM ${managedAssetRows} AS media ${sqlWhere}`;
   const { results } = await env.IMG.prepare(listSql)
     .bind(...binds, PAGE_SIZE, offset)
     .all();
