@@ -596,24 +596,24 @@ export default function Home() {
             </div>
           </div>
           <div className="md:col-span-1 col-span-3">
-            <div
+            <button
+              type="button"
               className="w-full bg-red-500 cursor-pointer h-10 flex items-center justify-center text-white"
               onClick={handleClear}
             >
               <FontAwesomeIcon icon={faTrashAlt} style={{ width: '20px', height: '20px' }} className="mr-2" />
               清除
-            </div>
+            </button>
           </div>
           <div className="md:col-span-1 col-span-5">
-            <div
+            <button
+              type="button"
               className={`w-full bg-green-500 cursor-pointer h-10 flex items-center justify-center text-white ${uploading ? 'pointer-events-none opacity-50' : ''}`}
-              // className={`bg-green-500 text-white rounded-full w-6 h-6 flex items-center justify-center cursor-pointer mx-2 ${uploading ? 'pointer-events-none opacity-50' : ''}`}
-
               onClick={() => handleUpload()}
             >
               <FontAwesomeIcon icon={faUpload} style={{ width: '20px', height: '20px' }} className="mr-2" />
               上传
-            </div>
+            </button>
           </div>
         </div>
 
