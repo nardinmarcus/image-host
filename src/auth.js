@@ -29,7 +29,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             password: process.env.REGULAR_PASS
           };
 
-          if (safeEqual(credentials.username, adminUser.username) && safeEqual(credentials.password, adminUser.password)) {
+          if (credentials.username === adminUser.username && credentials.password === adminUser.password) {
             const user = {
               id: 1,
               name: process.env.BASIC_USER,
@@ -41,7 +41,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }
 
           // 验证普通用户
-          if (safeEqual(credentials.username, regularUser.username) && safeEqual(credentials.password, regularUser.password)) {
+          if (credentials.username === regularUser.username && credentials.password === regularUser.password) {
             const user = {
               id: 2,
               name: process.env.REGULAR_USER,

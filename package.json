@@ -18,7 +18,7 @@
     "@fortawesome/react-fontawesome": "^0.2.2",
     "@next/third-parties": "^14.2.5",
     "next": "^14.2.35",
-    "next-auth": "^5.0.0-beta.31",
+    "next-auth": "^5.0.0-beta.19",
     "react": "^18",
     "react-dom": "^18",
     "react-photo-view": "^1.2.6",
