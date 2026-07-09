@@ -180,11 +180,11 @@ export default function AdminInsights({
                 </div>
                 <p className="mt-2 text-xs leading-5 text-stone-500">已覆盖 {metadata.sizeCoveredFiles} / {metadata.totalFiles} 个文件；未知大小不会计为 0 B。</p>
               </div>
-              {metadata.missingSize ? (
+              {metadata.r2Pending ? (
                 <button type="button" onClick={onBackfill} disabled={backfilling} className="min-h-10 w-full rounded-lg border border-teal-200 bg-teal-50 px-3 text-sm font-medium text-teal-800 transition hover:bg-teal-100 disabled:cursor-wait disabled:opacity-60">
-                  {backfilling ? '正在补全一批 R2 文件…' : '补全一批 R2 文件元数据'}
+                  {backfilling ? '正在补全一批 R2 文件…' : `补全 ${metadata.r2Pending} 个 R2 文件元数据`}
                 </button>
-              ) : <p className="text-sm text-emerald-700">目前没有等待补全大小的资源。</p>}
+              ) : <p className="text-sm leading-5 text-emerald-700">R2 历史文件已补全；TG 文件大小暂以“未采集”诚实呈现。</p>}
             </div>
           ) : <EmptyState>正在读取数据覆盖情况…</EmptyState>}
         </SectionCard>

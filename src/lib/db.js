@@ -277,6 +277,7 @@ export async function getAdminInsights(env, requestedRange) {
       COUNT(size_bytes) AS size_covered_files,
       COALESCE(SUM(size_bytes), 0) AS size_bytes,
       SUM(CASE WHEN size_bytes IS NULL THEN 1 ELSE 0 END) AS missing_size,
+      SUM(CASE WHEN url LIKE '/rfile/%' AND size_bytes IS NULL AND metadata_status IN ('pending', 'failed') THEN 1 ELSE 0 END) AS r2_pending,
       SUM(CASE WHEN kind IS NULL OR kind = '' THEN 1 ELSE 0 END) AS unclassified,
       SUM(CASE WHEN metadata_status = 'failed' THEN 1 ELSE 0 END) AS metadata_failed
       FROM ${managedAssetRows}`).first(),
@@ -336,6 +337,7 @@ export async function getAdminInsights(env, requestedRange) {
       totalFiles: Number(assets?.total_files || 0),
       sizeCoveredFiles: Number(assets?.size_covered_files || 0),
       missingSize: Number(assets?.missing_size || 0),
+      r2Pending: Number(assets?.r2_pending || 0),
       unclassified: Number(assets?.unclassified || 0),
       failed: Number(assets?.metadata_failed || 0),
     },
