@@ -77,9 +77,10 @@ export async function GET(request) {
 - 生产实测新图：`Cache-Control: public, max-age=…, s-maxage=86400`，二次请求 `cf-cache-status: HIT`
 - 注意：CF 控制台若配置了 Browser Cache TTL，可能把浏览器 `max-age` 改写成 14400；`s-maxage` 仍以代码为准
 
-### 已完成 · R2/TG 上传鉴权（本轮）
+### 已完成 · R2/TG 上传鉴权（commit `f64c3f8`，生产已验证）
 - `r2`/`tgchannel` 路由内 `auth()`：仅 `admin`/`user` 可上传
 - middleware：`/api/enableauthapi/r2|tgchannel` 始终 401（不依赖 `ENABLE_AUTH_API`）；`isauth` 仍可匿名探测
+- 生产：未登录 POST r2/tgchannel → 401；isauth 仍 200；admin 仍 401
 
 ### 下一步（按优先级）
 1. **首页 client/server 边界**（统计/登录态服务端取数，减少首屏串行 3 个 API）
