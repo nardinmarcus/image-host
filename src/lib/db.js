@@ -91,3 +91,13 @@ export async function countImgInfo(env) {
   const r = await env.IMG.prepare('SELECT COUNT(*) as total FROM imginfo').first();
   return r?.total ?? 0;
 }
+
+// Top20 统计（访问日志按字段聚合，field 白名单防注入——GROUP BY 不支持 bind）
+const STATS_FIELDS = ['ip', 'referer', 'url'];
+export async function getTopStats(env, field, limit = 20) {
+  if (!STATS_FIELDS.includes(field)) return [];
+  const { results } = await env.IMG.prepare(
+    `SELECT ${field} AS name, COUNT(*) AS count FROM tgimglog GROUP BY ${field} ORDER BY count DESC LIMIT ?`
+  ).bind(limit).all();
+  return results;
+}

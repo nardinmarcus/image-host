@@ -76,7 +76,6 @@ export async function POST(request) {
 
 
 			} catch (error) {
-				console.log(error);
 				await insertImgInfo(env, { url: `/rfile/${key}`, referer: Referer, ip: clientIp, rating: -1, time });
 
 

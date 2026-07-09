@@ -71,7 +71,6 @@ async function getModerateContentRating(env, url) {
     const apikey = env.ModerateContentApiKey;
     const ModerateContentUrl = apikey ? `https://api.moderatecontent.com/moderate/?key=${apikey}&` : '';
     const ratingApi = env.RATINGAPI ? `${env.RATINGAPI}?` : ModerateContentUrl;
-    console.log(`${ratingApi}url=https://telegra.ph${url}`);
     if (ratingApi) {
       const res = await fetch(`${ratingApi}url=https://telegra.ph${url}`);
       const data = await res.json();
@@ -79,7 +78,6 @@ async function getModerateContentRating(env, url) {
     }
     return 0;
   } catch (error) {
-    console.log('error');
     return -1;
   }
 }

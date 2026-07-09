@@ -89,7 +89,6 @@ export async function POST(request) {
 				})
 
 			} catch (error) {
-				console.log(error);
 				await insertImgInfo(env, { url: `/cfile/${fileData.file_id}`, referer: Referer, ip: clientIp, rating: -1, time });
 
 

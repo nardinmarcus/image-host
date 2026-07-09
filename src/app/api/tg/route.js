@@ -71,7 +71,6 @@ export async function POST(request) {
         })
 
       } catch (error) {
-        console.log(error);
         await insertImgInfo(env, { url: resdata.src, referer: Referer, ip: clientIp, rating: -1, time });
 
 

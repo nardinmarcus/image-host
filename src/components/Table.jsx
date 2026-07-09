@@ -19,7 +19,6 @@ export default function Table({ data: initialData = [] }) {
     }, [initialData]);
 
     const handleClickOutside = (e) => {
-        console.log(modalRef.current.contains(e.target));
         if (modalRef.current && !modalRef.current.contains(e.target)) {
             setModalData(null);
         }

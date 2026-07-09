@@ -18,12 +18,10 @@ export function LoginPage() {
       });
       // console.log(result);
       if (result?.error) {
-        console.log(result.error);
         toast.error("用户名或密码错误，请核对后在登陆！")
       } else {
         // 成功处理，比如重定向到一个受保护的页面
         // router.push("/admin")
-        console.log('Login successful!');
         toast.success('登录成功，自动跳转到对应页面!')
         // toast.error('Login successful!')
         setTimeout(() => {
@@ -31,7 +29,6 @@ export function LoginPage() {
         }, 1000);
       }
     } catch (error) {
-      console.log('Error during sign in:', error);
     }
   };
 
