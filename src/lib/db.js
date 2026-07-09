@@ -2,7 +2,7 @@
 // 替换散落在 13 个路由里的 insertImgInfo / getRating / insertTgImgLog 等重复函数
 // 参考: file/[name]/route.js:117-121 已有的正确 .bind() 写法
 
-import { kindExtList } from '@/lib/mediaMeta';
+import { kindExtList, kindSqlClause } from '@/lib/mediaMeta';
 
 const PAGE_SIZE = 12;
 
@@ -30,12 +30,10 @@ function buildImgFilters(query, filters = {}, urlColumn = 'url') {
   else if (storage === 'tg') where.push(`${urlColumn} LIKE '/cfile/%'`);
   else if (storage === 'file') where.push(`${urlColumn} LIKE '/file/%'`);
 
-  const kind = filters.kind;
-  const exts = kindExtList(kind);
-  if (exts.length) {
-    // 扩展名白名单 → LIKE '%.png' OR ...
-    where.push(`(${exts.map(() => `lower(${urlColumn}) LIKE ?`).join(' OR ')})`);
-    for (const e of exts) binds.push(`%.${e}`);
+  const kindClause = kindSqlClause(urlColumn, filters.kind);
+  if (kindClause.sql) {
+    where.push(kindClause.sql);
+    binds.push(...kindClause.binds);
   }
 
   if (filters.blocked === 'yes') where.push('rating = 3');
@@ -105,10 +103,10 @@ export async function searchLogs(env, query, page, filters = {}) {
   else if (filters.storage === 'tg') where.push("tgimglog.url LIKE '/cfile/%'");
   else if (filters.storage === 'file') where.push("tgimglog.url LIKE '/file/%'");
 
-  const exts = kindExtList(filters.kind);
-  if (exts.length) {
-    where.push(`(${exts.map(() => 'lower(tgimglog.url) LIKE ?').join(' OR ')})`);
-    for (const e of exts) binds.push(`%.${e}`);
+  const kindClause = kindSqlClause('tgimglog.url', filters.kind);
+  if (kindClause.sql) {
+    where.push(kindClause.sql);
+    binds.push(...kindClause.binds);
   }
   if (filters.blocked === 'yes') where.push('imginfo.rating = 3');
   else if (filters.blocked === 'no') where.push('(imginfo.rating IS NULL OR imginfo.rating != 3)');
