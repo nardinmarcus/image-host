@@ -401,45 +401,26 @@ export default function Home() {
           </div>
         );
       case 'htmlLinks':
-        return (
-          <div ref={parentRef} className=" p-4 bg-slate-100  " onClick={handleCopyCode}>
-            {uploadedImages.map((data, index) => (
-              <div key={index} className="mb-2 ">
-                <code className=" w-2 break-all">{`<img src="${data.url}" alt="${data.name}" />`}</code>
-              </div>
-            ))}
-          </div >
-        );
       case 'markdownLinks':
-        return (
-          <div ref={parentRef} className=" p-4 bg-slate-100  " onClick={handleCopyCode}>
-            {uploadedImages.map((data, index) => (
-              <div key={index} className="mb-2">
-                <code className=" w-2 break-all">{`![${data.name}](${data.url})`}</code>
-              </div>
-            ))}
-          </div>
-        );
       case 'bbcodeLinks':
+      case 'viewLinks': {
+        const linkTemplates = {
+          htmlLinks: (d) => `<img src="${d.url}" alt="${d.name}" />`,
+          markdownLinks: (d) => `![${d.name}](${d.url})`,
+          bbcodeLinks: (d) => `[img]${d.url}[/img]`,
+          viewLinks: (d) => `${d.url}`,
+        };
+        const tpl = linkTemplates[activeTab];
         return (
           <div ref={parentRef} className=" p-4 bg-slate-100  " onClick={handleCopyCode}>
             {uploadedImages.map((data, index) => (
               <div key={index} className="mb-2">
-                <code className=" w-2 break-all">{`[img]${data.url}[/img]`}</code>
+                <code className=" w-2 break-all">{tpl(data)}</code>
               </div>
             ))}
           </div>
         );
-      case 'viewLinks':
-        return (
-          <div ref={parentRef} className=" p-4 bg-slate-100  " onClick={handleCopyCode}>
-            {uploadedImages.map((data, index) => (
-              <div key={index} className="mb-2">
-                <code className=" w-2 break-all">{`${data.url}`}</code>
-              </div>
-            ))}
-          </div>
-        );
+      }
       default:
         return null;
     }
