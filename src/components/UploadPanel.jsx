@@ -34,15 +34,13 @@ export default function UploadPanel({
     fileInputRef?.current?.click();
   };
 
-  // R2：图片/视频；TG_Channel：另支持音频与 PDF
-  const accept =
-    selectedOption === 'tgchannel'
-      ? 'image/*,video/*,audio/*,application/pdf'
-      : 'image/*,video/*';
+  // 选择器始终放宽（含 .pdf），避免默认 R2 时系统对话框把 PDF 灰掉；
+  // 实际上传由当前接口 + 服务端 MIME 校验。
+  const accept = 'image/*,video/*,audio/*,.pdf,application/pdf';
   const typeHint =
     selectedOption === 'tgchannel'
       ? '图片/视频/音频/PDF'
-      : '图片/视频';
+      : '图片/视频（音频/PDF 请用 TG_Channel）';
 
   return (
     <>

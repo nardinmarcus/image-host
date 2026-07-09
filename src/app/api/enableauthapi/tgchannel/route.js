@@ -27,7 +27,15 @@ export async function POST(request) {
 	if (!file) return jsonErr('No file uploaded', 400);
 	if (file.size > MAX_UPLOAD_BYTES) return jsonErr(`file too large (max ${MAX_UPLOAD_MB}MB)`, 413);
 
-	const fileType = file.type || '';
+	// 部分环境 PDF 的 type 为空或 application/x-pdf，用扩展名兜底
+	const rawType = (file.type || '').toLowerCase();
+	const name = file.name || '';
+	const isPdf =
+		rawType === 'application/pdf' ||
+		rawType === 'application/x-pdf' ||
+		/\.pdf$/i.test(name);
+	const fileType = isPdf ? 'application/pdf' : rawType;
+
 	// TG 频道支持 image / video / audio / pdf（与 fileTypeMap 对齐）
 	const allowed =
 		fileType.startsWith('image/') ||

@@ -21,6 +21,24 @@ const UA_HEADERS = {
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
 };
 
+function isPdfFile(file) {
+  const t = (file.type || "").toLowerCase();
+  return (
+    t === "application/pdf" ||
+    t === "application/x-pdf" ||
+    /\.pdf$/i.test(file.name || "")
+  );
+}
+
+function isAudioFile(file) {
+  return (file.type || "").startsWith("audio/") || /\.(mp3|m4a|wav|ogg|flac|aac)$/i.test(file.name || "");
+}
+
+/** 音频/PDF 只能走 TG；选中后自动切换接口，避免 R2 accept 灰掉 PDF */
+function needsTgChannel(files) {
+  return files.some((f) => isPdfFile(f) || isAudioFile(f));
+}
+
 /**
  * 首页交互层。total / ip / 登录态由 Server Component 注入，不再首屏串行 3 个 API。
  */
@@ -45,15 +63,32 @@ export default function HomeClient({
 
   const fileInputRef = useRef(null);
 
-  const handleFileChange = (event) => {
-    const newFiles = event.target.files;
-    const filteredFiles = Array.from(newFiles).filter(
+  const addFiles = (fileList) => {
+    const incoming = Array.from(fileList || []);
+    if (incoming.length === 0) return;
+
+    const filteredFiles = incoming.filter(
       (file) => !selectedFiles.find((selFile) => selFile.name === file.name)
     );
     const uniqueFiles = filteredFiles.filter(
       (file) => !uploadedImages.find((upImg) => upImg.name === file.name)
     );
-    setSelectedFiles([...selectedFiles, ...uniqueFiles]);
+    if (uniqueFiles.length === 0) return;
+
+    if (needsTgChannel(uniqueFiles) && selectedOption !== "tgchannel") {
+      if (!isAuthapi) {
+        toast.error("音频/PDF 需登录后使用 TG_Channel 上传");
+      } else {
+        setSelectedOption("tgchannel");
+        toast.info("已切换到 TG_Channel（支持音频/PDF）");
+      }
+    }
+
+    setSelectedFiles((prev) => [...prev, ...uniqueFiles]);
+  };
+
+  const handleFileChange = (event) => {
+    addFiles(event.target.files);
     event.target.value = "";
   };
 
@@ -169,13 +204,7 @@ export default function HomeClient({
 
   const handleDrop = (event) => {
     event.preventDefault();
-    const files = event.dataTransfer.files;
-    if (files.length > 0) {
-      const filteredFiles = Array.from(files).filter(
-        (file) => !selectedFiles.find((selFile) => selFile.name === file.name)
-      );
-      setSelectedFiles([...selectedFiles, ...filteredFiles]);
-    }
+    addFiles(event.dataTransfer.files);
   };
 
   const handleDragOver = (event) => {
@@ -196,19 +225,20 @@ export default function HomeClient({
   }, [filePreviews]);
 
   const handleImageClick = (index) => {
-    const t = selectedFiles[index].type;
+    const file = selectedFiles[index];
+    const t = file.type || "";
     if (t.startsWith("image/")) {
       setBoxtype("img");
     } else if (t.startsWith("video/")) {
       setBoxtype("video");
-    } else if (t.startsWith("audio/")) {
+    } else if (isAudioFile(file)) {
       setBoxtype("audio");
-    } else if (t === "application/pdf") {
+    } else if (isPdfFile(file)) {
       setBoxtype("pdf");
     } else {
       setBoxtype("other");
     }
-    setSelectedImage(URL.createObjectURL(selectedFiles[index]));
+    setSelectedImage(URL.createObjectURL(file));
   };
 
   const handleCloseImage = () => {

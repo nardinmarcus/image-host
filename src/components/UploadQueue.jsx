@@ -74,7 +74,9 @@ export default function UploadQueue({
                   <audio src={filePreviews[index]} controls className="w-full" />
                 </div>
               )}
-              {file.type === 'application/pdf' && (
+              {(file.type === 'application/pdf' ||
+                file.type === 'application/x-pdf' ||
+                /\.pdf$/i.test(file.name || '')) && (
                 <div className="flex items-center justify-center w-full h-full bg-gray-200 text-gray-700 p-2">
                   <p className="text-sm text-center break-all">PDF<br />{file.name}</p>
                 </div>
@@ -82,7 +84,9 @@ export default function UploadQueue({
               {!file.type.startsWith('image/') &&
                 !file.type.startsWith('video/') &&
                 !file.type.startsWith('audio/') &&
-                file.type !== 'application/pdf' && (
+                file.type !== 'application/pdf' &&
+                file.type !== 'application/x-pdf' &&
+                !/\.pdf$/i.test(file.name || '') && (
                 <div className="flex items-center justify-center w-full h-full bg-gray-200 text-gray-700">
                   <p>{file.name}</p>
                 </div>
