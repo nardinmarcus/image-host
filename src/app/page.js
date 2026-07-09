@@ -627,7 +627,7 @@ export default function Home() {
                 <button
                   onClick={() => setActiveTab('preview')}
                   className={`px-4 py-2 ${activeTab === 'preview' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'}`}>
-                  Preview
+                  预览
                 </button>
                 <button
                   onClick={() => setActiveTab('htmlLinks')}
@@ -647,7 +647,7 @@ export default function Home() {
                 <button
                   onClick={() => setActiveTab('viewLinks')}
                   className={`px-4 py-2 ${activeTab === 'viewLinks' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'}`}>
-                  Links
+                  链接
                 </button>
               </div>
               {renderTabContent()}
