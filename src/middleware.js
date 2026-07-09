@@ -10,6 +10,12 @@ const LOGIN = '/login'
 const API_ADMIN = "/api/admin"
 const ADMIN_PAGE = "/admin"
 const AUTH_API = "/api/enableauthapi"
+// isauth 允许匿名探测登录态；r2/tgchannel 主存储上传始终要登录
+const AUTH_STATUS = "/api/enableauthapi/isauth"
+const AUTH_UPLOAD_PREFIXES = [
+    "/api/enableauthapi/r2",
+    "/api/enableauthapi/tgchannel",
+];
 const enableAuthapi = process.env.ENABLE_AUTH_API === 'true';
 
 function isPagesDevHost(hostname) {
@@ -28,6 +34,16 @@ function redirectPagesDevToCustomDomain(req) {
     return Response.redirect(targetUrl, 301);
 }
 
+function isAuthStatusPath(pathname) {
+    return pathname === AUTH_STATUS || pathname.startsWith(`${AUTH_STATUS}/`);
+}
+
+function isUploadAuthPath(pathname) {
+    return AUTH_UPLOAD_PREFIXES.some(
+        (p) => pathname === p || pathname.startsWith(`${p}/`)
+    );
+}
+
 const protectedRoutesMiddleware = auth(async (req) => {
     const { nextUrl } = req;
 
@@ -41,6 +57,8 @@ const protectedRoutesMiddleware = auth(async (req) => {
     const isADMIN_PAGE = nextUrl.pathname.startsWith(ADMIN_PAGE);
 
     const isAuthAPI = nextUrl.pathname.startsWith(AUTH_API);
+    const isUploadAPI = isUploadAuthPath(nextUrl.pathname);
+    const isStatusAPI = isAuthStatusPath(nextUrl.pathname);
 
     if (!isAuthenticated) {
         if (isAPI_ADMIN) {
@@ -52,8 +70,15 @@ const protectedRoutesMiddleware = auth(async (req) => {
         else if (isADMIN_PAGE) {
             return Response.redirect(new URL(LOGIN, nextUrl));
         }
-        else if (isAuthAPI) {
-
+        // 主存储上传：始终要求登录（与 ENABLE_AUTH_API 无关）
+        else if (isUploadAPI) {
+            return Response.json(
+                { status: "fail", message: "You are not logged in by user !", success: false },
+                { status: 401 }
+            );
+        }
+        else if (isAuthAPI && !isStatusAPI) {
+            // 其余 enableauthapi（如 ip）：仍由 ENABLE_AUTH_API 开关控制
             if (enableAuthapi) {
                 return Response.json(
                     { status: "fail", message: "You are not logged in by user !", success: false },

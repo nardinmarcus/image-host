@@ -1,10 +1,17 @@
 export const runtime = 'edge';
 import { getRequestContext } from '@cloudflare/next-on-pages';
+import { auth } from '@/auth';
 import { insertImgInfo } from '@/lib/db';
 import { corsHeaders, jsonErr, getClientIp, getReferer } from '@/lib/http';
 import { nowTime } from '@/lib/time';
 
 export async function POST(request) {
+	// 主存储上传始终要求登录（不依赖 ENABLE_AUTH_API）
+	const session = await auth();
+	const role = session?.user?.role;
+	if (role !== 'admin' && role !== 'user') {
+		return jsonErr('unauthorized', 401);
+	}
 
 	const { env, cf, ctx } = getRequestContext();
 

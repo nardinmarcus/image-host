@@ -77,11 +77,14 @@ export async function GET(request) {
 - 生产实测新图：`Cache-Control: public, max-age=…, s-maxage=86400`，二次请求 `cf-cache-status: HIT`
 - 注意：CF 控制台若配置了 Browser Cache TTL，可能把浏览器 `max-age` 改写成 14400；`s-maxage` 仍以代码为准
 
+### 已完成 · R2/TG 上传鉴权（本轮）
+- `r2`/`tgchannel` 路由内 `auth()`：仅 `admin`/`user` 可上传
+- middleware：`/api/enableauthapi/r2|tgchannel` 始终 401（不依赖 `ENABLE_AUTH_API`）；`isauth` 仍可匿名探测
+
 ### 下一步（按优先级）
 1. **首页 client/server 边界**（统计/登录态服务端取数，减少首屏串行 3 个 API）
-2. **R2 上传 API 鉴权加固**（`ENABLE_AUTH_API=false` 时 middleware 不拦 `/api/enableauthapi/*`，未登录 POST R2 仍可成功；UI 已挡，API 未挡）
-3. **tgchannel audio/pdf 收窄**（MIME 只放行 image/video，fileTypeMap 仍写 audio/pdf）：需用户确认是否放宽
-4. **time 字段改 ISO8601**（`nowTime()` 仍本地化字符串；需迁移，D1 不可逆，谨慎）
+2. **tgchannel audio/pdf 收窄**（MIME 只放行 image/video，fileTypeMap 仍写 audio/pdf）：需用户确认是否放宽
+3. **time 字段改 ISO8601**（`nowTime()` 仍本地化字符串；需迁移，D1 不可逆，谨慎）
 
 ### 风险高（单独做）
 6. **迁移 OpenNext**（`@cloudflare/next-on-pages` 已于 2025-09-29 归档）：要改 15+ route + 去掉 `runtime = 'edge'` + middleware 兼容 + 构建重做。**单独完整周期**

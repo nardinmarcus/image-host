@@ -63,7 +63,7 @@
 ### 阶段 6 · 性能与工程化（1-2 天）
 - [x] `file`/`cfile`/`rfile` 统一 `Cache-Control`（`MEDIA_CACHE_CONTROL`：max-age=3600,s-maxage=86400）+ `file` 补 `caches.default`
 - [ ] 首页拆 client/server 边界（统计、登录态服务端取数）
-- [ ] R2 上传 API 强制鉴权（ENABLE_AUTH_API=false 时未登录仍可 POST `/api/enableauthapi/r2`）
+- [x] R2/TG 上传 API 强制鉴权（路由 auth + middleware 始终拦 r2/tgchannel；isauth 可匿名）
 - [x] 补 Top20 统计 API + 后台 Tab
 - [x] 加 `.github/workflows`（lint + build）
 - [x] 清理死代码（ImageModal、admin/ip、console 部分清理）
