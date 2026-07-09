@@ -243,7 +243,7 @@ export default function Admin() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="搜索路径…"
-                  className="border border-stone-200 rounded-lg px-3 py-1.5 text-sm w-28 sm:w-44 bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-300"
+                  className="border border-stone-200 rounded-lg px-3 py-1.5 text-sm w-36 sm:w-52 bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-300"
                 />
                 <button
                   type="submit"
@@ -253,12 +253,12 @@ export default function Admin() {
                 </button>
               </form>
             )}
+            {/* 移动端无侧栏，保留回前台入口 */}
             <Link
               href="/"
-              className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-stone-300 bg-white text-stone-800 hover:bg-stone-50 hover:border-stone-400 whitespace-nowrap font-medium"
+              className="md:hidden inline-flex items-center text-sm px-3 py-1.5 rounded-lg border border-stone-300 bg-white text-stone-800 font-medium whitespace-nowrap"
             >
-              <span aria-hidden>←</span>
-              返回前台
+              ← 前台
             </Link>
           </div>
         </header>
