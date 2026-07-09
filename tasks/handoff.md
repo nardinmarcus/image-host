@@ -64,17 +64,20 @@ export async function GET(request) {
 
 ## 5. 剩余优化项（按优先级，含位置+方向+风险）
 
-### 优先级中
-1. **拆前端 `src/app/page.js`（718 行）** → 子组件 `UploadPanel`/`UploadQueue`/`ResultLinks`/`ProviderSelect`。现状：13 个 useState + 上传/预览/Tab/模态全挤一个文件。风险：中（前端逻辑密集，拆错会破坏上传/预览）。方向：先抽纯展示组件（ResultLinks 的 Tab 渲染、Footer），再抽状态组件
-2. **拖拽区 a11y**（`page.js` 拖拽区 `onDrop`/`onPaste`/`onDragOver`，约 :494-503）：无 `tabIndex`/`role`/键盘回退。方向：加 `tabIndex={0}` `role="button"` `aria-label` + `onKeyDown`（Enter/Space 触发隐藏的 file input click）
+### 已完成（2026-07-09 本轮）
+- 拆前端：`UploadPanel` / `UploadQueue` / `ResultLinks` / `ProviderSelect`（`page.js` 瘦身为编排层）
+- 拖拽区 a11y：`tabIndex`/`role`/`aria-label`/Enter·Space 打开 file picker
+- 上传源 UI 收敛：仅 R2 + TG_Channel，未登录禁用 select 并提示
+- admin useCallback 依赖数组补齐
 
 ### 优先级低
-3. **admin/page.js 的 useCallback lint warning**（:22 getListdata、:69 fetchStats 无依赖数组；:53/:82 effect 缺依赖）：功能正常，纯风格。方向：给 useCallback 加正确依赖数组 `[view, searchQuery]`/`[]`，effect 加对应依赖；或 `// eslint-disable-next-line react-hooks/exhaustive-deps`
-4. **tgchannel audio/pdf 收窄**（`enableauthapi/tgchannel/route.js` :20-21 的 MIME 校验只放行 image/video，但 :26-31 fileTypeMap 仍支持 audio/pdf）：需用户确认是否放宽校验（加 `audio/` 和 `application/pdf` 到白名单）
-5. **time 字段存储格式**（`lib/time.js` 的 `nowTime()` 仍返回本地化字符串如"2026年7月9日"，schema 声明 DATE）：影响按时间排序/筛选。方向：改 ISO8601 + 历史数据迁移脚本（D1 不可逆，谨慎）
+1. **tgchannel audio/pdf 收窄**（`enableauthapi/tgchannel/route.js` MIME 只放行 image/video，fileTypeMap 仍写 audio/pdf）：需用户确认是否放宽
+2. **time 字段存储格式**（`lib/time.js` 的 `nowTime()` 仍本地化字符串，schema 声明 DATE）：改 ISO8601 + 历史迁移（D1 不可逆，谨慎）
+3. **统一 Cache-Control**（rfile/cfile 已有 `caches.default`；file 与响应头可再对齐）
+4. **首页 client/server 边界**（统计/登录态服务端取数，减少首屏串行）
 
 ### 风险高（单独做）
-6. **迁移 OpenNext**（`@cloudflare/next-on-pages` 已于 2025-09-29 归档）：要改 15+ route（`getRequestContext`→`getCloudflareContext` 且变 async）+ 移除所有 `export const runtime = 'edge'`（OpenNext 用 Node.js runtime）+ middleware 兼容性不确定（next-auth middleware + OpenNext Node runtime）+ 构建配置重做。**建议：next-on-pages 虽归档但仍工作，非紧急，单独一个完整周期做**
+5. **迁移 OpenNext**（`@cloudflare/next-on-pages` 已于 2025-09-29 归档）：要改 15+ route（`getRequestContext`→`getCloudflareContext` 且变 async）+ 移除所有 `export const runtime = 'edge'` + middleware 兼容性不确定 + 构建配置重做。**建议：单独一个完整周期做**
 
 ## 6. 关键陷阱（踩过坑，务必避免）
 
@@ -106,7 +109,7 @@ CF Bindings：`IMG`（D1）、`IMGRS`（R2）在 Pages → Settings → Function
 2. `git log --oneline -20` 看 16 个整改 commit 的脉络
 3. 确认 main 健康：`gh api .../check-runs`（上面命令）应 completed/success
 4. `curl -s https://image.namooca.com/api/total -w "\n%{http_code}"` 应 200（快速健康检查）
-5. 挑第 5 节的一个剩余项，按"位置+方向"动手；改完 lint → push → check-runs 监控 → 让用户验证
+5. 挑第 5 节剩余项（OpenNext / ISO time / Cache-Control 等）；改完 lint → push → check-runs 监控 → 让用户验证
 
 ## 9. 参考资源
 

@@ -59,12 +59,12 @@ export default function Admin() {
       toast.error(error.message)
     }
 
-  })
+  }, [view, searchQuery])
 
 
   useEffect(() => {
     if (view !== 'stats') getListdata(currentPage)
-  }, [currentPage, view]);
+  }, [currentPage, view, getListdata]);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -75,11 +75,11 @@ export default function Admin() {
     } catch (error) {
       toast.error('获取统计失败');
     }
-  });
+  }, []);
 
   useEffect(() => {
     if (view === 'stats') fetchStats();
-  }, [view]);
+  }, [view, fetchStats]);
 
 
   const handleNextPage = () => {

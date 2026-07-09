@@ -61,12 +61,15 @@
 - 验证：build 不卡 / 上传读取删除后台全功能正常 / pages.dev 跳转仍生效
 
 ### 阶段 6 · 性能与工程化（1-2 天）
-- [ ] `file`/`cfile`/`rfile` 加 `Cache-Control` + `caches.default`
+- [~] `file`/`cfile`/`rfile` 加 `Cache-Control` + `caches.default`（rfile/cfile 已有 caches.default；file 与统一 Cache-Control 待补）
 - [ ] 首页拆 client/server 边界（统计、登录态服务端取数）
-- [ ] 补 Top20 统计 API + 后台 Tab（README 承诺但代码缺失的功能）
-- [ ] 加 `.github/workflows`（lint + build）
-- [ ] 清理死代码（`ImageModal.jsx`、`admin/ip` 死端点、40 处 console.log、注释代码）
-- [ ] 前端拆 `UploadPanel`/`UploadQueue`/`ResultLinks`/`ProviderSelect`
+- [x] 补 Top20 统计 API + 后台 Tab
+- [x] 加 `.github/workflows`（lint + build）
+- [x] 清理死代码（ImageModal、admin/ip、console 部分清理）
+- [x] 前端拆 `UploadPanel`/`UploadQueue`/`ResultLinks`/`ProviderSelect`
+- [x] 拖拽区 a11y（tabIndex/role/键盘回退）
+- [x] 上传源 UI 收敛：默认仅 R2 + TG_Channel，未登录提示需登录
+- [x] admin useCallback 依赖数组补齐
 - 验证：分发接口命中缓存 / 首屏不再串行 3 个 API / 后台统计 Tab 可用
 
 ## 风险与对策
@@ -77,11 +80,11 @@
 
 ## 实施前需确认的点（动手时第一件事查证）
 
-1. next-auth v5 当前 stable 状态（影响阶段 2 选版）
+1. next-auth v5 当前 stable 状态（影响阶段 2 选版）— 阶段 2 已取 beta.31
 2. OpenNext Cloudflare 的 D1/R2 binding 访问 API（影响阶段 5）
-3. `admin/list` 的 `page` 是 0-based 还是 1-based（影响阶段 1 分页计算）
+3. `admin/list` 的 `page` 是 0-based 还是 1-based（影响阶段 1 分页计算）— 已按 0-based 处理
 
 ## 时间预估
 
-- 阶段 0-4 约 **2.5 天**（上线红线，做完即可公开上线）
-- 阶段 5-6 约 **2-3 天**（技术债清偿，可随后迭代）
+- 阶段 0-4 约 **2.5 天**（上线红线，做完即可公开上线）✓
+- 阶段 5-6 约 **2-3 天**（技术债清偿，可随后迭代；6 大部分完成）
