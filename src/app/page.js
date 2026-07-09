@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { signOut } from "next-auth/react"
 import Image from "next/image";
 import { faImages, faTrashAlt, faUpload, faSearchPlus } from '@fortawesome/free-solid-svg-icons';
@@ -276,6 +276,15 @@ export default function Home() {
     return `${rows * 100}px`;
   };
 
+  // 缓存 selectedFiles 的 Blob URL，selectedFiles 变化时自动 revoke 旧的（防 render 内 createObjectURL 内存泄漏）
+  const filePreviews = useMemo(
+    () => selectedFiles.map(f => URL.createObjectURL(f)),
+    [selectedFiles]
+  );
+  useEffect(() => {
+    return () => filePreviews.forEach(u => URL.revokeObjectURL(u));
+  }, [filePreviews]);
+
   // 处理点击图片放大
   const handleImageClick = (index) => {
 
@@ -291,6 +300,7 @@ export default function Home() {
   };
 
   const handleCloseImage = () => {
+    if (selectedImage && selectedImage.startsWith('blob:')) URL.revokeObjectURL(selectedImage);
     setSelectedImage(null);
   };
 
@@ -508,14 +518,14 @@ export default function Home() {
                 <div className="relative w-36 h-36 " onClick={() => handleImageClick(index)}>
                   {file.type.startsWith('image/') && (
                     <Image
-                      src={URL.createObjectURL(file)}
+                      src={filePreviews[index]}
                       alt={`Preview ${file.name}`}
                       fill={true}
                     />
                   )}
                   {file.type.startsWith('video/') && (
                     <video
-                      src={URL.createObjectURL(file)}
+                      src={filePreviews[index]}
                       controls
                       className="w-full h-full"
                     />
