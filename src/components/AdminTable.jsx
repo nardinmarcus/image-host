@@ -25,11 +25,11 @@ function resolveUrl(url) {
     : url;
 }
 
-function isImageKind(url) {
-  return getKind(url) === 'image';
+function isImageKind(item) {
+  return getKind(item) === 'image';
 }
-function isVideoKind(url) {
-  return getKind(url) === 'video';
+function isVideoKind(item) {
+  return getKind(item) === 'video';
 }
 
 /**
@@ -84,16 +84,17 @@ export default function AdminTable({ data: initialData = [], layout = 'table' })
     if (window.confirm(msg)) await deleteItem(url);
   };
 
-  const renderPreview = (url, index, className = 'w-full h-full object-cover') => {
+  const renderPreview = (item, index, className = 'w-full h-full object-cover') => {
+    const url = typeof item === 'string' ? item : item.url;
     const full = resolveUrl(url);
-    const kind = getKind(url);
+    const kind = getKind(typeof item === 'string' ? { url } : item);
     if (kind === 'image') {
       return <img src={full} alt="" className={className} />;
     }
     if (kind === 'video') {
       return <video src={full} className={className} muted playsInline />;
     }
-    const badge = getDocBadge(url);
+    const badge = getDocBadge(typeof item === 'string' ? { url } : item);
     return (
       <div className="w-full h-full flex items-center justify-center bg-amber-50 text-amber-900 text-xs font-semibold">
         {badge}
@@ -121,9 +122,12 @@ export default function AdminTable({ data: initialData = [], layout = 'table' })
     );
   };
 
-  const KindBadge = ({ url }) => (
-    <span className="inline-block px-1.5 py-0.5 rounded text-[11px] font-medium bg-stone-100 text-stone-600">
-      {getKindLabel(getKind(url))}
+  const KindBadge = ({ item }) => (
+    <span
+      className="inline-block px-1.5 py-0.5 rounded text-[11px] font-medium bg-stone-100 text-stone-600"
+      title={item.mime || ''}
+    >
+      {getKindLabel(getKind(item))}
     </span>
   );
 
@@ -146,7 +150,7 @@ export default function AdminTable({ data: initialData = [], layout = 'table' })
                     className="aspect-square bg-stone-100 cursor-pointer relative"
                     onClick={() => setModalData(item)}
                   >
-                    {renderPreview(item.url, index)}
+                    {renderPreview(item, index)}
                     {isBlocked(item.rating) && (
                       <span className="absolute top-2 left-2 text-[10px] font-semibold bg-red-600 text-white px-1.5 py-0.5 rounded">
                         拉黑
@@ -156,7 +160,7 @@ export default function AdminTable({ data: initialData = [], layout = 'table' })
                   <div className="p-2.5 space-y-1.5 flex-1 flex flex-col">
                     <div className="flex gap-1 flex-wrap">
                       <StorageBadge url={item.url} />
-                      <KindBadge url={item.url} />
+                      <KindBadge item={item} />
                     </div>
                     <p className="text-xs text-stone-600 truncate" title={item.url}>
                       {item.url}
@@ -241,13 +245,13 @@ export default function AdminTable({ data: initialData = [], layout = 'table' })
             >
               {data.map((item, index) => {
                 const full = resolveUrl(item.url);
-                const previewable = isImageKind(item.url) || isVideoKind(item.url);
+                const previewable = isImageKind(item) || isVideoKind(item);
                 return (
                   <tr key={item.url || index} className="border-t border-stone-100 hover:bg-stone-50/80">
                     <td className="p-2 sticky left-0 bg-white z-10 w-16">
                       <div className="w-12 h-12 rounded-md overflow-hidden border border-stone-200 bg-stone-50">
                         {previewable ? (
-                          isVideoKind(item.url) ? (
+                          isVideoKind(item) ? (
                             <PhotoView
                               width={400}
                               height={400}
@@ -256,18 +260,18 @@ export default function AdminTable({ data: initialData = [], layout = 'table' })
                                 const offset = (width - 400) / 400;
                                 return (
                                   <div {...attrs} className={`flex-none bg-white ${attrs.className || ''}`}>
-                                    {renderPreview(item.url, index)}
+                                    {renderPreview(item, index)}
                                   </div>
                                 );
                               }}
                             >
-                              {renderPreview(item.url, index)}
+                              {renderPreview(item, index)}
                             </PhotoView>
                           ) : (
-                            <PhotoView src={full}>{renderPreview(item.url, index)}</PhotoView>
+                            <PhotoView src={full}>{renderPreview(item, index)}</PhotoView>
                           )
                         ) : (
-                          renderPreview(item.url, index)
+                          renderPreview(item, index)
                         )}
                       </div>
                     </td>
@@ -285,7 +289,7 @@ export default function AdminTable({ data: initialData = [], layout = 'table' })
                       )}
                     </td>
                     <td className="px-3 py-2"><StorageBadge url={item.url} /></td>
-                    <td className="px-3 py-2"><KindBadge url={item.url} /></td>
+                    <td className="px-3 py-2"><KindBadge item={item} /></td>
                     <td className="px-3 py-2 text-stone-500 whitespace-nowrap text-xs">
                       {formatTimeDisplay(item.time)}
                     </td>

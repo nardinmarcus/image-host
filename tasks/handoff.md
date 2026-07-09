@@ -115,6 +115,11 @@ export async function GET(request) {
 - 资源页：列表（A）↔ 网格（C）切换；文档徽章；TG 删除确认文案
 - 组件：`AdminTable`、`mediaMeta.js`；旧 `Table.jsx` 已无引用可后续删
 
+### 已完成 · 文件类型权威源（mime/kind 列）
+- 上传时写入 `imginfo.mime` + `imginfo.kind`（来自 File.type / Content-Type）
+- 筛选优先 `kind`/`mime`，仅旧数据无元数据时回退 URL 扩展名
+- 启动时 `ensureImginfoMetaColumns`：ALTER 加列 + 回填空 kind（最多 500/次）
+
 ### 下一步（按优先级）
 1. 后台 P2：URL 同步筛选、详情抽屉增强、批量操作、统计点穿
 2. **（可选）历史 time 迁移脚本**

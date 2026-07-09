@@ -57,7 +57,7 @@ export async function POST(request) {
       const time = await nowTime()
       try {
         const rating_index = await getRating(env, resdata.src)
-        await insertImgInfo(env, { url: resdata.src, referer: Referer, ip: clientIp, rating: rating_index, time });
+        await insertImgInfo(env, { url: resdata.src, referer: Referer, ip: clientIp, rating: rating_index, time, mime: 'image/jpeg' });
         return Response.json({
           ...data,
           msg: "2",
@@ -71,7 +71,7 @@ export async function POST(request) {
         })
 
       } catch (error) {
-        await insertImgInfo(env, { url: resdata.src, referer: Referer, ip: clientIp, rating: -1, time });
+        await insertImgInfo(env, { url: resdata.src, referer: Referer, ip: clientIp, rating: -1, time, mime: 'image/jpeg' });
 
 
         return jsonErr('internal error');

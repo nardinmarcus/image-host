@@ -87,7 +87,7 @@ export async function GET(request, { params }) {
     if (env.PROXYALLIMG) {
       try {
         const rating_index = await getModerateContentRating(env, url);
-        await insertImgInfo(env, { url, referer: Referer, ip: clientIp, rating: rating_index, time });
+        await insertImgInfo(env, { url, referer: Referer, ip: clientIp, rating: rating_index, time, mime: res.headers.get('content-type') || 'image/jpeg' });
         if (rating_index === 3) {
           return Response.redirect(`${req_url.origin}/img/blocked.png`, 302);
         }

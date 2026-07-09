@@ -14,6 +14,12 @@ CREATE TABLE IF NOT EXISTS imginfo (
 	`ip` varchar(255),
 	`rating` integer,
 	`total` integer,
-	`time` DATE
+	`time` DATE,
+	`mime` text,
+	`kind` text
 );
+
+-- 已有库迁移（生产 D1 控制台执行一次即可；代码也会尝试 ALTER）：
+-- ALTER TABLE imginfo ADD COLUMN mime TEXT;
+-- ALTER TABLE imginfo ADD COLUMN kind TEXT;
 

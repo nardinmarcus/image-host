@@ -80,7 +80,7 @@ export async function POST(request) {
     try {
       if (env.IMG) {
         const time = await nowTime()
-        await insertImgInfo(env, { url: correctImageUrl, referer: Referer, ip: clientIp, rating: 7, time });
+        await insertImgInfo(env, { url: correctImageUrl, referer: Referer, ip: clientIp, rating: 7, time, mime: file.type || 'image/jpeg' });
       }
     } catch (error) {
 

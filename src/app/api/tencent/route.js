@@ -42,7 +42,7 @@ export async function POST(request) {
     try {
       if (env.IMG) {
         const time = await nowTime()
-        await insertImgInfo(env, { url: resdata.url, referer: Referer, ip: clientIp, rating: 7, time });
+        await insertImgInfo(env, { url: resdata.url, referer: Referer, ip: clientIp, rating: 7, time, mime: 'image/jpeg' });
     }
     } catch (error) {
 
