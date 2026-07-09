@@ -52,16 +52,6 @@ function needsTgChannel(files) {
   return files.some((f) => isPdfFile(f) || isAudioFile(f));
 }
 
-function officeLabel(file) {
-  const n = file.name || "";
-  if (/\.docx?$/i.test(n)) return "Word";
-  if (/\.xlsx?$/i.test(n)) return "Excel";
-  if (/\.pptx?$/i.test(n)) return "PPT";
-  if (isEpubFile(file)) return "EPUB";
-  if (isPdfFile(file)) return "PDF";
-  return "文档";
-}
-
 /**
  * 首页交互层。total / ip / 登录态由 Server Component 注入，不再首屏串行 3 个 API。
  */
