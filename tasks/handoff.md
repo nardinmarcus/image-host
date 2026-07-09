@@ -105,9 +105,9 @@ export async function GET(request) {
 
 ### 已完成 · 文档上传（EPUB / Word / Excel / PPT）
 - `src/lib/mime.js`：扩展名归一化 + 白名单
-- **R2 + TG**：epub / doc(x) / xls(x) / ppt(x)
-- **仅 TG**：audio / pdf（历史策略）
-- 上限仍 20MB；推荐办公文档走 **R2**（可删）
+- **R2 + TG 均支持** epub/doc/xls/ppt；**R2 只存桶，不发 TG**
+- 前端：选 PDF/音频/办公文档/EPUB 时**自动切 TG_Channel**，才会出现在 Telegram 频道
+- 上限 20MB
 
 ### 下一步（按优先级）
 1. **（可选）历史 time 迁移脚本**：中文日期 → ISO（D1 不可逆，需备份后批处理）

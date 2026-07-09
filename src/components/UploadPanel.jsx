@@ -47,8 +47,8 @@ export default function UploadPanel({
   ].join(',');
   const typeHint =
     selectedOption === 'tgchannel'
-      ? '图片/视频/音频/PDF/EPUB/Word/Excel/PPT'
-      : '图片/视频/EPUB/Word/Excel/PPT（音频/PDF 请用 TG_Channel）';
+      ? '图片/视频/音频/PDF/EPUB/Word/Excel/PPT → 发到 TG 频道'
+      : '图片/视频存 R2；文档/音频/PDF 会自动切 TG 发频道';
 
   return (
     <>

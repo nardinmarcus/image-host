@@ -47,9 +47,14 @@ function isAudioFile(file) {
   return (file.type || "").startsWith("audio/") || /\.(mp3|m4a|wav|ogg|flac|aac)$/i.test(file.name || "");
 }
 
-/** 音频/PDF 只能走 TG；办公文档/EPUB 可走 R2 */
+/**
+ * 需要进 Telegram 频道的类型：音频/PDF/办公文档/EPUB。
+ * 默认接口是 R2（只存桶、不发 TG）；这些类型自动切到 TG_Channel。
+ */
 function needsTgChannel(files) {
-  return files.some((f) => isPdfFile(f) || isAudioFile(f));
+  return files.some(
+    (f) => isPdfFile(f) || isAudioFile(f) || isEpubFile(f) || isOfficeFile(f)
+  );
 }
 
 /**
@@ -90,10 +95,10 @@ export default function HomeClient({
 
     if (needsTgChannel(uniqueFiles) && selectedOption !== "tgchannel") {
       if (!isAuthapi) {
-        toast.error("音频/PDF 需登录后使用 TG_Channel 上传");
+        toast.error("该类型需登录后使用 TG_Channel 上传（会发到频道）");
       } else {
         setSelectedOption("tgchannel");
-        toast.info("已切换到 TG_Channel（支持音频/PDF）");
+        toast.info("已切换到 TG_Channel（文件将发到 Telegram 频道）");
       }
     }
 
