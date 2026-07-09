@@ -38,6 +38,13 @@ export function getReferer(request) {
 }
 
 /**
+ * 上传体积上限（R2 / TG 等主路径共用）。
+ * 20MB：对齐 Telegram Bot getFile 可拉取上限，过大则 cfile 读回失败。
+ */
+export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
+export const MAX_UPLOAD_MB = 20;
+
+/**
  * 媒体分发缓存策略（rfile/cfile/file 统一）：
  * - 浏览器 1h（删除后用户侧不至于一年残留）
  * - 共享/edge 1d（配合 caches.default；删 R2 时已 caches.default.delete）

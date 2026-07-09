@@ -50,7 +50,7 @@ export default function UploadPanel({
         <div className="flex flex-col">
           <div className="text-gray-800 text-lg">文件上传</div>
           <div className="mb-4 text-sm text-gray-500">
-            最大 5 MB（{typeHint}）；本站已托管{' '}
+            最大 20 MB（{typeHint}）；本站已托管{' '}
             <span className="text-cyan-600">{total}</span> 张图片; 你访问本站的IP是：
             <span className="text-cyan-600">{ip}</span>
           </div>

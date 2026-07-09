@@ -2,7 +2,7 @@ export const runtime = 'edge';
 import { getRequestContext } from '@cloudflare/next-on-pages';
 import { auth } from '@/auth';
 import { insertImgInfo } from '@/lib/db';
-import { corsHeaders, jsonErr, getClientIp, getReferer } from '@/lib/http';
+import { corsHeaders, jsonErr, getClientIp, getReferer, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from '@/lib/http';
 import { nowTime } from '@/lib/time';
 
 export async function POST(request) {
@@ -25,7 +25,7 @@ export async function POST(request) {
 	const formData = await request.formData();
 	const file = formData.get('file');
 	if (!file) return jsonErr('No file uploaded', 400);
-	if (file.size > 5 * 1024 * 1024) return jsonErr('file too large (max 5MB)', 413);
+	if (file.size > MAX_UPLOAD_BYTES) return jsonErr(`file too large (max ${MAX_UPLOAD_MB}MB)`, 413);
 
 	const fileType = file.type || '';
 	// TG 频道支持 image / video / audio / pdf（与 fileTypeMap 对齐）

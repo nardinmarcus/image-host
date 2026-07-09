@@ -8,7 +8,7 @@
 2. **产品定位**：R2 + TG 频道作为主存储；telegraph/58/tencent/vviptuangou 降级为"环境变量开启的可选 fallback"，默认关闭、UI 不暴露。保留代码能力，但默认不给用户用——规避合规与稳定性风险，又不丢功能。
 3. **next-auth**：升级到 v5 最新版（优先 stable；若仍仅 beta 则取最新 beta，不退回 v4——重写 auth.js 成本高于收益）。
 4. **R2 文件名**：`crypto.randomUUID() + 原扩展名`，禁止用户原始文件名做 key（防覆盖/路径注入）。
-5. **上传限制**：服务端强制 `≤5MB` + MIME 白名单（`image/*`、`video/*`），前端文案与后端校验对齐。
+5. **上传限制**：服务端强制 `≤20MB`（`MAX_UPLOAD_BYTES`，对齐 TG getFile）+ MIME 白名单；前端文案对齐。
 
 ## 阶段计划
 

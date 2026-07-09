@@ -16,7 +16,7 @@ telegraph-Image 的 fork，Next.js 14.2.5 (App Router) + next-auth v5 beta + Clo
 - 存储：默认 R2（可删/无乱码）、cfile 乱码修复、admin/delete 联动删 R2 + 清缓存
 - 工程化：`src/lib` 公共层、Top20 统计、CI、死代码清理、内存泄漏修复、a11y、中文化
 
-**验证过的功能**：登录、上传（正常图 + >5MB 拒绝）、R2 删除（`?nocache` 404）、Top20 统计、缩略图/预览。
+**验证过的功能**：登录、上传（正常图 + 体积上限）、R2 删除（`?nocache` 404）、Top20 统计、缩略图/预览。
 
 ## 3. 架构与关键文件
 
@@ -87,6 +87,10 @@ export async function GET(request) {
 - `src/components/HomeClient.jsx`：纯交互层，props 注入 total/ip/role；上传成功本地 +total
 - 首屏不再请求 `/api/total`、`/api/ip`、`/api/enableauthapi/isauth`
 - 生产 SSR HTML 已内嵌 total（如 129）与客户端 IP，未登录仍显示「需登录后上传」
+
+### 上传体积
+- 统一上限 **20MB**（`src/lib/http.js` 的 `MAX_UPLOAD_BYTES` / `MAX_UPLOAD_MB`）
+- 原因：Telegram Bot `getFile` 约 20MB；再大 cfile 读回会挂
 
 ### 已完成 · tgchannel audio/pdf（commit `30916f4`，已部署）
 - 白名单恢复：`image/*` / `video/*` / `audio/*` / `application/pdf`
