@@ -37,14 +37,10 @@ export async function POST(request) {
 	const ext = extFromMimeOrName(fileType, filename);
 	const key = `${crypto.randomUUID()}.${ext}`;
 
-	const header = new Headers()
-	header.set("content-type", fileType || 'application/octet-stream')
-	header.set("content-length", `${file.size}`)
-
 	try {
 
 		const object = await env.IMGRS.put(key, file, {
-			httpMetadata: header
+			httpMetadata: { contentType: fileType || 'application/octet-stream' }
 		})
 
 		if (object === null) {
@@ -86,6 +82,7 @@ export async function POST(request) {
 
 
 			} catch (error) {
+				console.error('Failed to classify or record R2 upload', error);
 				await insertImgInfo(env, { url: `/rfile/${key}`, referer: Referer, ip: clientIp, rating: -1, time, mime: fileType });
 
 
@@ -94,6 +91,7 @@ export async function POST(request) {
 		}
 
 	} catch (error) {
+		console.error('Failed to store R2 upload', error);
 		return jsonErr('internal error');
 	}
 

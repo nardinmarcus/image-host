@@ -69,8 +69,28 @@
 
 ---
 
+## 阶段 7 · 上传信任与分发性能（完成）
+
+- [x] 登录前上传 CTA、存储去向说明与 TG 确认
+- [x] 文件队列状态、失败重试、结果一键复制与交互可访问性
+- [x] 媒体拉黑改为真实管理员会话判定
+- [x] D1 索引迁移，移除运行时 DDL/历史回填
+- [x] R2/TG 媒体日志异步化，TG 文件流式转发
+- [x] 本地 Cloudflare 开发平台与验证覆盖
+
+---
+
 ## 验证约定
 
 - lint：`npm run lint`  
 - 部署：push main → CF check-runs `completed/success`  
-- 勿本地 `next build`（Node 22 + Next 14）  
+- 勿本地 `next build`（Node 22 + Next 14）
+
+---
+
+## 阶段 7 验收记录（2026-07-10）
+
+- `npm run verify:p0-p1`、`npm run lint`、`git diff --check` 通过。
+- 本地 D1 迁移已应用并确认无待执行项；索引与三张表均存在。
+- 本地 R2 端到端：普通用户上传 200；预热缓存后拉黑资源，带 Referer 的匿名请求 302、管理员会话 200、Range 读取 206；删除后同一 URL 404。
+- 浏览器验收：登录前 CTA、TG 后果确认与确认后选中状态通过；390px 宽度无横向溢出，控制台无错误。

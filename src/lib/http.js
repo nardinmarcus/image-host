@@ -24,6 +24,11 @@ export function jsonErr(message = 'internal error', status = 500) {
   });
 }
 
+/** 302 响应头保持可变，兼容 Next 的 Edge 开发适配层。 */
+export function redirectTo(location) {
+  return new Response(null, { status: 302, headers: { Location: location } });
+}
+
 // 提取客户端 IP —— edge runtime 无 request.socket，用 Cloudflare 标准 header
 export function getClientIp(request) {
   const ip = request.headers.get('cf-connecting-ip')

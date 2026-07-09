@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "image-host-local",
+  "compatibility_date": "2025-03-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "IMG",
+      "database_name": "image-host-local",
+      "database_id": "local-image-host"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "IMGRS",
+      "bucket_name": "image-host-local"
+    }
+  ]
+}

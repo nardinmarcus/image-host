@@ -1,7 +1,8 @@
 export const runtime = 'edge';
 import { getRequestContext } from '@cloudflare/next-on-pages';
+import { auth } from '@/auth';
 import { insertTgImgLog, getRating, incrementTotal, insertImgInfo } from '@/lib/db';
-import { getClientIp, getReferer, jsonErr, applyMediaCacheHeaders } from '@/lib/http';
+import { getClientIp, getReferer, jsonErr, applyMediaCacheHeaders, redirectTo } from '@/lib/http';
 import { nowTime } from '@/lib/time';
 
 function withMediaCache(res) {
@@ -31,22 +32,18 @@ export async function GET(request, { params }) {
   const cache = caches.default;
 
   try {
-    const isAdminReferer = Referer === `${req_url.origin}/admin`
-      || Referer === `${req_url.origin}/list`
-      || Referer === `${req_url.origin}/`;
+    const isAdmin = (await auth())?.user?.role === 'admin';
+    const rating = env.IMG ? await getRating(env, url) : null;
+
+    if (rating === 3 && !isAdmin) {
+      ctx.waitUntil(logRequest(env, url, Referer, clientIp));
+      return redirectTo(`${req_url.origin}/img/blocked.png`);
+    }
 
     // 已有缓存：直接返回（仍记访问日志）
     const cachedResponse = await cache.match(cacheKey);
     if (cachedResponse) {
-      if (!isAdminReferer && env.IMG) {
-        const time = await nowTime();
-        try {
-          await insertTgImgLog(env, { url, referer: Referer, ip: clientIp, time });
-          await incrementTotal(env, url);
-        } catch (error) {
-          console.error('file cache log error:', error);
-        }
-      }
+      if (!isAdmin && env.IMG) ctx.waitUntil(logRequest(env, url, Referer, clientIp));
       return cachedResponse;
     }
 
@@ -56,7 +53,7 @@ export async function GET(request, { params }) {
       body: request.body,
     });
 
-    if (isAdminReferer || !env.IMG) {
+    if (isAdmin || !env.IMG) {
       const out = withMediaCache(res);
       if (out.status === 200) {
         ctx.waitUntil(cache.put(cacheKey, out.clone()));
@@ -64,19 +61,8 @@ export async function GET(request, { params }) {
       return out;
     }
 
-    const time = await nowTime();
-    await insertTgImgLog(env, { url, referer: Referer, ip: clientIp, time });
-
-    const rating = await getRating(env, url);
     if (rating !== null) {
-      try {
-        await incrementTotal(env, url);
-      } catch (error) {
-        console.error('file incrementTotal error:', error);
-      }
-      if (rating === 3) {
-        return Response.redirect(`${req_url.origin}/img/blocked.png`, 302);
-      }
+      ctx.waitUntil(logRequest(env, url, Referer, clientIp));
       const out = withMediaCache(res);
       if (out.status === 200) {
         ctx.waitUntil(cache.put(cacheKey, out.clone()));
@@ -87,9 +73,10 @@ export async function GET(request, { params }) {
     if (env.PROXYALLIMG) {
       try {
         const rating_index = await getModerateContentRating(env, url);
+        const time = await nowTime();
         await insertImgInfo(env, { url, referer: Referer, ip: clientIp, rating: rating_index, time, mime: res.headers.get('content-type') || 'image/jpeg' });
         if (rating_index === 3) {
-          return Response.redirect(`${req_url.origin}/img/blocked.png`, 302);
+          return redirectTo(`${req_url.origin}/img/blocked.png`);
         }
         const out = withMediaCache(res);
         if (out.status === 200) {
@@ -102,10 +89,20 @@ export async function GET(request, { params }) {
       }
     }
 
-    return Response.redirect(`https://telegra.ph/file/${name}`, 302);
+    return redirectTo(`https://telegra.ph/file/${name}`);
   } catch (error) {
     console.error('file/[name] error:', error);
     return jsonErr('internal error');
+  }
+}
+
+async function logRequest(env, url, referer, ip) {
+  try {
+    const time = await nowTime();
+    await insertTgImgLog(env, { url, referer, ip, time });
+    await incrementTotal(env, url);
+  } catch (error) {
+    console.error('file logRequest error:', error);
   }
 }
 

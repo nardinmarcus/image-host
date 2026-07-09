@@ -30,11 +30,16 @@
 
 ```bash
 npm install
+cp .env.example .env.local
 npm run dev
 npm run lint
 ```
 
 > **注意：** 在 Node 22 上本地 `npm run build` 可能卡死（Next 14 worker 问题）。生产以 Cloudflare Pages 构建为准，勿强行本地 build。
+
+`npm run dev` 会初始化本地 Cloudflare 开发平台；`.env.local` 仅提供本地登录凭证，真实 D1/R2/TG binding 仍由 Cloudflare Pages 配置。
+
+本地 D1/R2 binding 定义在版本控制的 `wrangler.local.jsonc`，数据落在 gitignored 的 `.wrangler/`。需要对远端 D1 执行 migration 时，先复制 `wrangler.example.toml` 为 `wrangler.toml` 并填入真实 ID；该文件不会提交。
 
 ---
 
@@ -47,7 +52,25 @@ npm run lint
 5. 部署后若改了变量/绑定，点 **重试部署**。  
 
 更细的 D1 建表截图与 SQL 说明见 [docs/manage.md](./docs/manage.md)。  
-初始化 SQL 见根目录 [tgimglog.sql](./tgimglog.sql)（含 `api_keys`；`mime`/`kind` 也可由运行时 `ALTER` 补齐）。
+新的数据库直接使用下方的 versioned migration 初始化；根目录 [tgimglog.sql](./tgimglog.sql) 是历史的破坏性初始化脚本，仅在明确需要重建本地数据时使用。
+
+### D1 migration
+
+上线本版本前，先执行一次受版本控制的索引 migration；应用运行时不会再修改表结构：
+
+```bash
+npm run d1:migrations:list
+npm run d1:migrations:apply
+```
+
+本地验证 migration 使用：
+
+```bash
+npm run d1:migrations:apply:local
+npm run d1:migrations:list:local
+```
+
+`imginfo` 必须已经具备 `mime` 和 `kind` 字段（新的 `tgimglog.sql` 已包含）。旧库请先在维护窗口按历史 SQL 完成这两个字段的迁移，再应用本 migration。
 
 ### 环境变量
 

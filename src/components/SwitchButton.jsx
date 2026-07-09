@@ -56,6 +56,7 @@ const Switcher = ({ initialChecked, initName }) => {
         checked={isChecked}
         onChange={handleCheckboxChange}
         disabled={!isDisabled}
+        aria-label={`${isChecked ? '取消拉黑' : '拉黑'} ${initName}`}
       />
       <span
         className={`slider mr-3 flex h-[26px] w-[50px] items-center rounded-full p-1 duration-200 ${isChecked ? 'bg-blue-600' : 'bg-[#CCCCCE]'}`}

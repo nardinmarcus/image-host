@@ -9,45 +9,9 @@ import {
 
 const PAGE_SIZE = 12;
 
-let schemaReady = false;
-
 function toPage(v) {
   const n = Number(v);
   return Number.isInteger(n) && n >= 0 ? n : 0;
-}
-
-/**
- * 确保 imginfo 有 mime/kind 列；并回填历史空值（按 URL 扩展名，仅一次/冷启动）
- */
-export async function ensureImginfoMetaColumns(env) {
-  if (!env?.IMG) return;
-  try {
-    await env.IMG.prepare('ALTER TABLE imginfo ADD COLUMN mime TEXT').run();
-  } catch {
-    /* column may already exist */
-  }
-  try {
-    await env.IMG.prepare('ALTER TABLE imginfo ADD COLUMN kind TEXT').run();
-  } catch {
-    /* column may already exist */
-  }
-
-  if (schemaReady) return;
-  try {
-    const { results } = await env.IMG.prepare(
-      `SELECT id, url, mime, kind FROM imginfo WHERE kind IS NULL OR kind = '' LIMIT 500`
-    ).all();
-    for (const row of results || []) {
-      const mime = row.mime || mimeFromUrl(row.url) || '';
-      const kind = row.kind || kindFromMime(mime) || kindFromUrl(row.url) || 'other';
-      await env.IMG.prepare('UPDATE imginfo SET mime = ?, kind = ? WHERE id = ?')
-        .bind(mime || null, kind, row.id)
-        .run();
-    }
-  } catch (e) {
-    console.error('backfill kind/mime error:', e);
-  }
-  schemaReady = true;
 }
 
 function buildImgFilters(query, filters = {}, urlColumn = 'url') {
@@ -82,25 +46,14 @@ function buildImgFilters(query, filters = {}, urlColumn = 'url') {
 
 // 插入图片元信息（写入 mime + kind，供后台精确筛选）
 export async function insertImgInfo(env, { url, referer, ip, rating, time, mime = '' }) {
-  await ensureImginfoMetaColumns(env);
   const normalizedMime = (mime || mimeFromUrl(url) || '').toLowerCase();
   const kind =
     kindFromMime(normalizedMime) || kindFromUrl(url) || 'other';
-  try {
-    return await env.IMG.prepare(
-      'INSERT INTO imginfo (url, referer, ip, rating, total, time, mime, kind) VALUES (?, ?, ?, ?, 1, ?, ?, ?)'
-    )
-      .bind(url, referer, ip, rating, time, normalizedMime || null, kind)
-      .run();
-  } catch (e) {
-    // 列尚未加上时的兼容回退
-    console.error('insertImgInfo with mime failed, fallback:', e);
-    return env.IMG.prepare(
-      'INSERT INTO imginfo (url, referer, ip, rating, total, time) VALUES (?, ?, ?, ?, 1, ?)'
-    )
-      .bind(url, referer, ip, rating, time)
-      .run();
-  }
+  return env.IMG.prepare(
+    'INSERT INTO imginfo (url, referer, ip, rating, total, time, mime, kind) VALUES (?, ?, ?, ?, 1, ?, ?, ?)'
+  )
+    .bind(url, referer, ip, rating, time, normalizedMime || null, kind)
+    .run();
 }
 
 export async function insertTgImgLog(env, { url, referer, ip, time }) {
@@ -116,6 +69,13 @@ export async function getRating(env, url) {
     .bind(url)
     .first();
   return r?.rating ?? null;
+}
+
+/** 受本站管理的媒体元数据。缺失记录意味着资源已删除或从未受管。 */
+export async function getMediaInfo(env, url) {
+  return env.IMG.prepare('SELECT rating, mime FROM imginfo WHERE url = ?')
+    .bind(url)
+    .first();
 }
 
 export async function incrementTotal(env, url) {
@@ -135,7 +95,6 @@ export async function deleteImgInfo(env, url) {
 }
 
 export async function searchImgInfo(env, query, page, filters = {}) {
-  await ensureImginfoMetaColumns(env);
   const offset = toPage(page) * PAGE_SIZE;
   const { sqlWhere, binds } = buildImgFilters(query, filters, 'url');
   const listSql = `SELECT * FROM imginfo ${sqlWhere} ORDER BY id DESC LIMIT ? OFFSET ?`;
@@ -148,7 +107,6 @@ export async function searchImgInfo(env, query, page, filters = {}) {
 }
 
 export async function searchLogs(env, query, page, filters = {}) {
-  await ensureImginfoMetaColumns(env);
   const offset = toPage(page) * PAGE_SIZE;
   const where = [];
   const binds = [];
@@ -201,23 +159,7 @@ export async function getTopStats(env, field, limit = 20) {
 }
 
 // —— API Keys ——
-export async function ensureApiKeysTable(env) {
-  if (!env?.IMG) return;
-  await env.IMG.prepare(`
-    CREATE TABLE IF NOT EXISTS api_keys (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      key_prefix TEXT NOT NULL,
-      key_hash TEXT NOT NULL UNIQUE,
-      enabled INTEGER NOT NULL DEFAULT 1,
-      created_at TEXT,
-      last_used_at TEXT
-    )
-  `).run();
-}
-
 export async function listApiKeys(env) {
-  await ensureApiKeysTable(env);
   const { results } = await env.IMG.prepare(
     'SELECT id, name, key_prefix, enabled, created_at, last_used_at FROM api_keys ORDER BY id DESC'
   ).all();
@@ -225,7 +167,6 @@ export async function listApiKeys(env) {
 }
 
 export async function createApiKey(env, { name, keyPrefix, keyHash, createdAt }) {
-  await ensureApiKeysTable(env);
   return env.IMG.prepare(
     'INSERT INTO api_keys (name, key_prefix, key_hash, enabled, created_at) VALUES (?, ?, ?, 1, ?)'
   )
@@ -234,20 +175,17 @@ export async function createApiKey(env, { name, keyPrefix, keyHash, createdAt })
 }
 
 export async function setApiKeyEnabled(env, id, enabled) {
-  await ensureApiKeysTable(env);
   return env.IMG.prepare('UPDATE api_keys SET enabled = ? WHERE id = ?')
     .bind(enabled ? 1 : 0, id)
     .run();
 }
 
 export async function deleteApiKey(env, id) {
-  await ensureApiKeysTable(env);
   return env.IMG.prepare('DELETE FROM api_keys WHERE id = ?').bind(id).run();
 }
 
 /** 用 hash 查有效密钥；命中则更新 last_used_at */
 export async function findEnabledApiKeyByHash(env, keyHash) {
-  await ensureApiKeysTable(env);
   const row = await env.IMG.prepare(
     'SELECT id, name, enabled FROM api_keys WHERE key_hash = ? AND enabled = 1'
   )

@@ -7,7 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "d1": "wrangler d1 execute img --local --file=./tgimglog.sql"
+    "d1": "wrangler d1 execute img --local --file=./tgimglog.sql",
+    "d1:migrations:list": "wrangler d1 migrations list IMG --remote",
+    "d1:migrations:apply": "wrangler d1 migrations apply IMG --remote",
+    "d1:migrations:list:local": "wrangler d1 migrations list IMG --local --config wrangler.local.jsonc",
+    "d1:migrations:apply:local": "wrangler d1 migrations apply IMG --local --config wrangler.local.jsonc",
+    "verify:p0-p1": "node scripts/verify-p0-p1.mjs"
   },
   "dependencies": {
     "@cloudflare/next-on-pages": "^1.12.1",

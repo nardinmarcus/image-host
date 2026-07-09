@@ -1,212 +1,68 @@
 'use client';
 
-import { useRef } from 'react';
 import { toast } from 'react-toastify';
+import { faCheck, faCopy, faLink } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
-const TABS = [
-  { id: 'preview', label: '预览' },
-  { id: 'htmlLinks', label: 'HTML' },
-  { id: 'markdownLinks', label: 'Markdown' },
-  { id: 'bbcodeLinks', label: 'BBCode' },
-  { id: 'viewLinks', label: '链接' },
+const formats = [
+  { id: 'viewLinks', label: '直链', format: (file) => file.url },
+  { id: 'markdownLinks', label: 'Markdown', format: (file) => `![${file.name}](${file.url})` },
+  { id: 'htmlLinks', label: 'HTML', format: (file) => `<img src="${file.url}" alt="${file.name}" />` },
+  { id: 'bbcodeLinks', label: 'BBCode', format: (file) => `[img]${file.url}[/img]` },
 ];
 
-const LINK_TEMPLATES = {
-  htmlLinks: (d) => `<img src="${d.url}" alt="${d.name}" />`,
-  markdownLinks: (d) => `![${d.name}](${d.url})`,
-  bbcodeLinks: (d) => `[img]${d.url}[/img]`,
-  viewLinks: (d) => `${d.url}`,
-};
+function formatFor(id, file) {
+  return formats.find((format) => format.id === id)?.format(file) || file.url;
+}
 
-/**
- * 上传结果：预览 / HTML / Markdown / BBCode / 直链。
- */
-export default function ResultLinks({
-  uploadedImages,
-  activeTab,
-  onTabChange,
-  onPreviewClick,
-}) {
-  const parentRef = useRef(null);
+function previewType(file) {
+  if (file.type.startsWith('image/')) return 'img';
+  if (file.type.startsWith('video/')) return 'video';
+  if (file.type.startsWith('audio/')) return 'audio';
+  return 'doc';
+}
 
-  const handleCopy = async (text) => {
+export default function ResultLinks({ uploadedFiles, activeTab, onTabChange, onPreviewClick }) {
+  if (!uploadedFiles.length) return null;
+
+  const copy = async (value, successMessage = '已复制到剪贴板') => {
     try {
-      await navigator.clipboard.writeText(text);
-      toast.success('链接复制成功');
+      await navigator.clipboard.writeText(value);
+      toast.success(successMessage);
     } catch {
-      toast.error('链接复制失败');
+      toast.error('复制失败，请检查浏览器权限');
     }
   };
-
-  const handleCopyCode = async () => {
-    const codeElements = parentRef.current?.querySelectorAll('code');
-    if (!codeElements?.length) return;
-    const values = Array.from(codeElements).map((code) => code.textContent);
-    try {
-      await navigator.clipboard.writeText(values.join('\n'));
-      toast.success('链接复制成功');
-    } catch (error) {
-      toast.error(`链接复制失败\n${error}`);
-    }
-  };
-
-  const renderFile = (data, index) => {
-    const fileUrl = data.url;
-    if (data.type.startsWith('image/')) {
-      return (
-        <img
-          key={`image-${index}`}
-          src={data.url}
-          alt={`已上传 ${index}`}
-          className="object-cover w-28 h-28 rounded-xl cursor-pointer"
-          onClick={() => onPreviewClick(fileUrl, 'img')}
-        />
-      );
-    }
-    if (data.type.startsWith('video/')) {
-      return (
-        <video
-          key={`video-${index}`}
-          src={data.url}
-          className="object-cover w-28 h-28 rounded-xl cursor-pointer"
-          controls
-          onClick={() => onPreviewClick(fileUrl, 'video')}
-        >
-          Your browser does not support the video tag.
-        </video>
-      );
-    }
-    if (data.type.startsWith('audio/')) {
-      return (
-        <div
-          key={`audio-${index}`}
-          className="w-28 h-28 flex flex-col items-center justify-center bg-slate-50 rounded-xl p-2 gap-1"
-        >
-          <span className="text-xs text-slate-500 truncate w-full px-1 text-center">
-            {data.name}
-          </span>
-          <audio src={data.url} controls className="w-full" />
-        </div>
-      );
-    }
-    {
-      const name = data.name || '';
-      const t = data.type || '';
-      let label = null;
-      if (t === 'application/pdf' || /\.pdf$/i.test(name)) label = 'PDF 打开';
-      else if (t === 'application/epub+zip' || t === 'application/epub' || /\.epub$/i.test(name)) label = 'EPUB 下载';
-      else if (/\.docx?$/i.test(name) || t.includes('word') || t === 'application/msword') label = 'Word 下载';
-      else if (/\.xlsx?$/i.test(name) || t.includes('sheet') || t.includes('excel')) label = 'Excel 下载';
-      else if (/\.pptx?$/i.test(name) || t.includes('presentation') || t.includes('powerpoint')) label = 'PPT 下载';
-      if (label) {
-        return (
-          <a
-            key={`doc-${index}`}
-            href={data.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            download
-            className="w-28 h-28 flex items-center justify-center bg-amber-50 rounded-xl text-sm text-amber-700 font-semibold text-center px-2"
-          >
-            {label}
-          </a>
-        );
-      }
-    }
-    return (
-      <img
-        key={`image-${index}`}
-        src={data.url}
-        alt={`已上传 ${index}`}
-        className="object-cover w-28 h-28 rounded-xl cursor-pointer"
-        onClick={() => onPreviewClick(fileUrl, 'other')}
-      />
-    );
-  };
-
-  const renderTabContent = () => {
-    if (activeTab === 'preview') {
-      return (
-        <div className="flex flex-col gap-3">
-          {uploadedImages.map((data, index) => (
-            <div
-              key={index}
-              className="flex flex-row items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_2px_12px_rgb(15_23_42/0.04)]"
-            >
-              {renderFile(data, index)}
-              <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-                {[
-                  { text: data.url, label: 'URL' },
-                  { text: `![${data.name}](${data.url})`, label: 'Markdown' },
-                  {
-                    text: `<a href="${data.url}" target="_blank"><img src="${data.url}"></a>`,
-                    label: 'HTML',
-                  },
-                  { text: `[img]${data.url}[/img]`, label: 'BBCode' },
-                ].map((item, i) => (
-                  <input
-                    key={`input-${i}`}
-                    readOnly
-                    value={item.text}
-                    onClick={() => handleCopy(item.text)}
-                    className="px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 text-xs text-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white cursor-pointer hover:border-slate-300 truncate"
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    const tpl = LINK_TEMPLATES[activeTab];
-    if (!tpl) return null;
-
-    return (
-      <div
-        ref={parentRef}
-        className="p-4 bg-slate-50 rounded-2xl border border-slate-200 cursor-pointer"
-        onClick={handleCopyCode}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            handleCopyCode();
-          }
-        }}
-        aria-label="点击复制全部链接"
-      >
-        {uploadedImages.map((data, index) => (
-          <div key={index} className="mb-2 last:mb-0">
-            <code className="block text-xs text-slate-700 break-all font-mono leading-relaxed">{tpl(data)}</code>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  if (uploadedImages.length === 0) return null;
+  const activeFormat = formats.find((format) => format.id === activeTab) || formats[0];
 
   return (
-    <div className="w-full mt-8">
-      <div className="flex flex-wrap gap-2 mb-4">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => onTabChange(tab.id)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === tab.id
-                ? 'bg-teal-50 text-teal-700'
-                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
-            }`}
-          >
-            {tab.label}
-          </button>
+    <section className="mt-10" aria-labelledby="result-title">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div><p className="text-xs font-bold uppercase tracking-[0.16em] text-teal-700">Ready to share</p><h2 id="result-title" className="mt-1 text-xl font-extrabold text-slate-900">上传完成</h2><p className="mt-1 text-sm text-slate-500">先复制常用格式；其余格式可一次复制全部结果。</p></div>
+        <button type="button" onClick={() => copy(uploadedFiles.map((file) => file.url).join('\n'), '已复制全部直链')} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-teal-200 bg-white px-4 py-2 text-sm font-semibold text-teal-700 hover:bg-teal-50"><FontAwesomeIcon icon={faCopy} className="h-4 w-4" />复制全部直链</button>
+      </div>
+
+      <div className="mt-4 space-y-3">
+        {uploadedFiles.map((file) => (
+          <article key={file.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_2px_12px_rgb(15_23_42/0.04)]">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <button type="button" onClick={() => onPreviewClick(file.url, previewType(file))} className="min-w-0 text-left"><p className="truncate text-sm font-semibold text-slate-800" title={file.name}>{file.name}</p><p className="mt-1 inline-flex items-center gap-1 text-xs text-slate-500"><FontAwesomeIcon icon={faCheck} className="h-3 w-3 text-teal-600" />{file.storage === 'tgchannel' ? '已发送到 Telegram 频道' : '已保存到可删除托管'}</p></button>
+              <div className="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-2">
+                <button type="button" onClick={() => copy(file.url, '已复制直链')} className="inline-flex min-h-10 min-w-0 items-center gap-2 rounded-lg bg-slate-50 px-3 text-left text-xs font-medium text-slate-700 hover:bg-slate-100"><FontAwesomeIcon icon={faLink} className="h-3.5 w-3.5 shrink-0 text-teal-600" /><span className="truncate">复制直链</span></button>
+                <button type="button" onClick={() => copy(formatFor('markdownLinks', file), '已复制 Markdown')} className="inline-flex min-h-10 min-w-0 items-center gap-2 rounded-lg bg-slate-50 px-3 text-left text-xs font-medium text-slate-700 hover:bg-slate-100"><FontAwesomeIcon icon={faCopy} className="h-3.5 w-3.5 shrink-0 text-teal-600" /><span className="truncate">复制 Markdown</span></button>
+              </div>
+            </div>
+          </article>
         ))}
       </div>
-      {renderTabContent()}
-    </div>
+
+      <div className="mt-6 flex flex-wrap gap-2" role="tablist" aria-label="批量复制格式">
+        {formats.map((format) => <button key={format.id} type="button" role="tab" aria-selected={activeTab === format.id} onClick={() => onTabChange(format.id)} className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${activeTab === format.id ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'}`}>{format.label}</button>)}
+      </div>
+      <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+        <div className="mb-3 flex items-center justify-between gap-3"><p className="text-sm font-semibold text-slate-700">全部 {activeFormat.label}</p><button type="button" onClick={() => copy(uploadedFiles.map((file) => activeFormat.format(file)).join('\n'), `已复制全部 ${activeFormat.label}`)} className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-white px-3 text-xs font-semibold text-teal-700 shadow-sm hover:bg-teal-50"><FontAwesomeIcon icon={faCopy} className="h-3.5 w-3.5" />复制全部</button></div>
+        <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-all font-mono text-xs leading-6 text-slate-700">{uploadedFiles.map((file) => activeFormat.format(file)).join('\n')}</pre>
+      </div>
+    </section>
   );
 }

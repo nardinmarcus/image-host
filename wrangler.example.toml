@@ -1,0 +1,15 @@
+name = "image-host"
+compatibility_date = "2025-03-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Copy this file to the gitignored wrangler.toml, then fill the actual D1 IDs
+# before applying migrations to a Cloudflare account.
+[[d1_databases]]
+binding = "IMG"
+database_name = "replace-with-d1-name"
+database_id = "replace-with-d1-id"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "IMGRS"
+bucket_name = "replace-with-r2-bucket-name"

@@ -1,42 +1,24 @@
 "use client";
-import { useState, useRef, useMemo, useEffect } from "react";
+
+import { useEffect, useRef, useState } from "react";
 import { signOut } from "next-auth/react";
 import { ToastContainer, toast } from "react-toastify";
-import Footer from "@/components/Footer";
 import Link from "next/link";
+import Footer from "@/components/Footer";
 import UploadPanel from "@/components/UploadPanel";
 import ResultLinks from "@/components/ResultLinks";
 
-const LoginButton = ({ onClick, children }) => (
-  <button
-    onClick={onClick}
-    className="px-5 py-2 rounded-xl text-sm font-semibold bg-teal-600 text-white shadow-[0_4px_14px_rgb(13_148_136/0.25)] hover:bg-teal-700"
-  >
-    {children}
-  </button>
-);
-
-const UA_HEADERS = {
-  "User-Agent":
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
-};
+const actionClassName =
+  "inline-flex items-center justify-center px-5 py-2 rounded-xl text-sm font-semibold bg-teal-600 text-white shadow-[0_4px_14px_rgb(13_148_136/0.25)] hover:bg-teal-700";
 
 function isPdfFile(file) {
-  const t = (file.type || "").toLowerCase();
-  return (
-    t === "application/pdf" ||
-    t === "application/x-pdf" ||
-    /\.pdf$/i.test(file.name || "")
-  );
+  const type = (file.type || "").toLowerCase();
+  return type === "application/pdf" || type === "application/x-pdf" || /\.pdf$/i.test(file.name || "");
 }
 
 function isEpubFile(file) {
-  const t = (file.type || "").toLowerCase();
-  return (
-    t === "application/epub+zip" ||
-    t === "application/epub" ||
-    /\.epub$/i.test(file.name || "")
-  );
+  const type = (file.type || "").toLowerCase();
+  return type === "application/epub+zip" || type === "application/epub" || /\.epub$/i.test(file.name || "");
 }
 
 function isOfficeFile(file) {
@@ -47,62 +29,114 @@ function isAudioFile(file) {
   return (file.type || "").startsWith("audio/") || /\.(mp3|m4a|wav|ogg|flac|aac)$/i.test(file.name || "");
 }
 
-/**
- * 需要进 Telegram 频道的类型：音频/PDF/办公文档/EPUB。
- * 默认接口是 R2（只存桶、不发 TG）；这些类型自动切到 TG_Channel。
- */
-function needsTgChannel(files) {
-  return files.some(
-    (f) => isPdfFile(f) || isAudioFile(f) || isEpubFile(f) || isOfficeFile(f)
-  );
+function fileFingerprint(file) {
+  return `${file.name}:${file.size}:${file.lastModified}`;
 }
 
-/**
- * 首页交互层。total / ip / 登录态由 Server Component 注入，不再首屏串行 3 个 API。
- */
+function newQueueItem(file) {
+  return {
+    id: crypto.randomUUID(),
+    file,
+    previewUrl: URL.createObjectURL(file),
+    status: "ready",
+    progress: 0,
+    error: "",
+  };
+}
+
+function uploadWithProgress(url, file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    const body = new FormData();
+    body.append("file", file);
+
+    request.open("POST", url);
+    request.responseType = "json";
+    request.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable) onProgress(Math.round((event.loaded / event.total) * 100));
+    });
+    request.addEventListener("error", () => reject(new Error("网络连接中断，请重试")));
+    request.addEventListener("abort", () => reject(new Error("上传已取消")));
+    request.addEventListener("load", () => {
+      const bodyData = request.response || {};
+      if (request.status >= 200 && request.status < 300 && bodyData.url) {
+        resolve(bodyData);
+        return;
+      }
+      reject(new Error(bodyData.message || `上传失败（${request.status || "未知错误"}）`));
+    });
+    request.send(body);
+  });
+}
+
+async function runWithConcurrency(items, worker, limit = 2) {
+  const results = [];
+  let nextIndex = 0;
+  const run = async () => {
+    while (nextIndex < items.length) {
+      const item = items[nextIndex++];
+      results.push(await worker(item));
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, run));
+  return results;
+}
+
+/** 首页交互层：上传队列、存储去向确认与结果分发。 */
 export default function HomeClient({
   initialTotal = "?",
   initialIp = "",
   initialRole = "",
   initialIsAuth = false,
 }) {
-  const [selectedFiles, setSelectedFiles] = useState([]);
-  const [uploadedImages, setUploadedImages] = useState([]);
-  const [uploadedFilesNum, setUploadedFilesNum] = useState(0);
+  const [queue, setQueue] = useState([]);
+  const [uploadedFiles, setUploadedFiles] = useState([]);
   const [selectedImage, setSelectedImage] = useState(null);
-  const [activeTab, setActiveTab] = useState("preview");
-  const [uploading, setUploading] = useState(false);
-  const [IP] = useState(initialIp);
-  const [Total, setTotal] = useState(initialTotal);
-  const [selectedOption, setSelectedOption] = useState("r2");
-  const [isAuthapi] = useState(initialIsAuth);
-  const [Loginuser] = useState(initialRole);
-  const [boxType, setBoxtype] = useState("img");
+  const [activeTab, setActiveTab] = useState("viewLinks");
+  const [total, setTotal] = useState(initialTotal);
+  const [selectedStorage, setSelectedStorage] = useState("r2");
+  const [tgConfirmed, setTgConfirmed] = useState(false);
+  const [showTgConfirmation, setShowTgConfirmation] = useState(false);
+  const [boxType, setBoxType] = useState("img");
 
+  const queueRef = useRef(queue);
   const fileInputRef = useRef(null);
+  const isAuth = initialIsAuth;
+  const role = initialRole;
+
+  useEffect(() => {
+    queueRef.current = queue;
+  }, [queue]);
+
+  useEffect(() => {
+    return () => {
+      queueRef.current.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+    };
+  }, []);
+
+  const updateQueueItem = (id, patch) => {
+    setQueue((items) =>
+      items.map((item) => (item.id === id ? { ...item, ...patch } : item))
+    );
+  };
 
   const addFiles = (fileList) => {
     const incoming = Array.from(fileList || []);
-    if (incoming.length === 0) return;
+    if (!incoming.length) return;
 
-    const filteredFiles = incoming.filter(
-      (file) => !selectedFiles.find((selFile) => selFile.name === file.name)
-    );
-    const uniqueFiles = filteredFiles.filter(
-      (file) => !uploadedImages.find((upImg) => upImg.name === file.name)
-    );
-    if (uniqueFiles.length === 0) return;
-
-    if (needsTgChannel(uniqueFiles) && selectedOption !== "tgchannel") {
-      if (!isAuthapi) {
-        toast.error("该类型需登录后使用 TG_Channel 上传（会发到频道）");
-      } else {
-        setSelectedOption("tgchannel");
-        toast.info("已切换到 TG_Channel（文件将发到 Telegram 频道）");
-      }
+    const known = new Set([
+      ...queueRef.current.map((item) => fileFingerprint(item.file)),
+      ...uploadedFiles.map((item) => item.fingerprint),
+    ]);
+    const uniqueFiles = incoming.filter((file) => !known.has(fileFingerprint(file)));
+    if (!uniqueFiles.length) {
+      toast.info("这些文件已经在队列或上传结果中");
+      return;
     }
-
-    setSelectedFiles((prev) => [...prev, ...uniqueFiles]);
+    if (uniqueFiles.length !== incoming.length) {
+      toast.info("已跳过重复文件");
+    }
+    setQueue((items) => [...items, ...uniqueFiles.map(newQueueItem)]);
   };
 
   const handleFileChange = (event) => {
@@ -110,325 +144,197 @@ export default function HomeClient({
     event.target.value = "";
   };
 
-  const handleClear = () => {
-    setSelectedFiles([]);
-  };
-
-  const getTotalSizeInMB = (files) => {
-    const totalSizeInBytes = Array.from(files).reduce(
-      (acc, file) => acc + file.size,
-      0
-    );
-    return (totalSizeInBytes / (1024 * 1024)).toFixed(2);
-  };
-
-  const handleUpload = async (file = null) => {
-    setUploading(true);
-    const filesToUpload = file ? [file] : selectedFiles;
-
-    if (filesToUpload.length === 0) {
-      toast.error("请选择要上传的文件");
-      setUploading(false);
-      return;
-    }
-
-    const formFieldName = selectedOption === "tencent" ? "media" : "file";
-    let successCount = 0;
-
-    try {
-      for (const f of filesToUpload) {
-        const formData = new FormData();
-        formData.append(formFieldName, f);
-
-        try {
-          const targetUrl =
-            selectedOption === "tgchannel" || selectedOption === "r2"
-              ? `/api/enableauthapi/${selectedOption}`
-              : `/api/${selectedOption}`;
-
-          const response = await fetch(targetUrl, {
-            method: "POST",
-            body: formData,
-            headers: UA_HEADERS,
-          });
-
-          if (response.ok) {
-            const result = await response.json();
-            f.url = result.url;
-            setUploadedImages((prevImages) => [...prevImages, f]);
-            setSelectedFiles((prevFiles) => prevFiles.filter((x) => x !== f));
-            successCount++;
-          } else {
-            let errorMsg;
-            try {
-              const errorData = await response.json();
-              errorMsg = errorData.message || `上传 ${f.name} 图片时出错`;
-            } catch {
-              errorMsg = `上传 ${f.name} 图片时发生未知错误`;
-            }
-
-            switch (response.status) {
-              case 400:
-                toast.error(`请求无效: ${errorMsg}`);
-                break;
-              case 403:
-                toast.error(`无权限访问资源: ${errorMsg}`);
-                break;
-              case 404:
-                toast.error(`资源未找到: ${errorMsg}`);
-                break;
-              case 500:
-                toast.error(`服务器错误: ${errorMsg}`);
-                break;
-              case 401:
-                toast.error(`未授权: ${errorMsg}`);
-                break;
-              default:
-                toast.error(`上传 ${f.name} 图片时出错: ${errorMsg}`);
-            }
-          }
-        } catch {
-          toast.error(`上传 ${f.name} 图片时出错`);
-        }
-      }
-
-      setUploadedFilesNum(uploadedFilesNum + successCount);
-      if (successCount > 0) {
-        setTotal((prev) => {
-          const n = Number(prev);
-          return Number.isFinite(n) ? n + successCount : prev;
-        });
-      }
-      toast.success(`已成功上传 ${successCount} 张图片`);
-    } catch (error) {
-      console.error("上传过程中出现错误:", error);
-      toast.error("上传错误");
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handlePaste = (event) => {
-    const clipboardItems = event.clipboardData.items;
-    for (let i = 0; i < clipboardItems.length; i++) {
-      const item = clipboardItems[i];
-      if (item.kind === "file" && item.type.includes("image")) {
-        const file = item.getAsFile();
-        setSelectedFiles((prev) => [...prev, file]);
-        break;
-      }
-    }
-  };
-
   const handleDrop = (event) => {
     event.preventDefault();
     addFiles(event.dataTransfer.files);
   };
 
-  const handleDragOver = (event) => {
-    event.preventDefault();
+  const handlePaste = (event) => {
+    const pastedFiles = Array.from(event.clipboardData?.items || [])
+      .filter((item) => item.kind === "file")
+      .map((item) => item.getAsFile())
+      .filter(Boolean);
+    addFiles(pastedFiles);
   };
 
-  const calculateMinHeight = () => {
-    const rows = Math.ceil(selectedFiles.length / 4);
-    return `${Math.max(rows, 1) * 100}px`;
+  const handleRemove = (id) => {
+    const item = queueRef.current.find((candidate) => candidate.id === id);
+    if (!item || item.status === "uploading") return;
+    URL.revokeObjectURL(item.previewUrl);
+    setQueue((items) => items.filter((candidate) => candidate.id !== id));
   };
 
-  const filePreviews = useMemo(
-    () => selectedFiles.map((f) => URL.createObjectURL(f)),
-    [selectedFiles]
-  );
-  useEffect(() => {
-    return () => filePreviews.forEach((u) => URL.revokeObjectURL(u));
-  }, [filePreviews]);
-
-  const handleImageClick = (index) => {
-    const file = selectedFiles[index];
-    const t = file.type || "";
-    if (t.startsWith("image/")) {
-      setBoxtype("img");
-    } else if (t.startsWith("video/")) {
-      setBoxtype("video");
-    } else if (isAudioFile(file)) {
-      setBoxtype("audio");
-    } else if (isPdfFile(file)) {
-      setBoxtype("pdf");
-    } else if (isEpubFile(file) || isOfficeFile(file)) {
-      setBoxtype("doc");
-    } else {
-      setBoxtype("other");
-    }
-    setSelectedImage(URL.createObjectURL(file));
+  const handleClear = () => {
+    const retained = queueRef.current.filter((item) => item.status === "uploading");
+    queueRef.current
+      .filter((item) => item.status !== "uploading")
+      .forEach((item) => URL.revokeObjectURL(item.previewUrl));
+    setQueue(retained);
   };
 
-  const handleCloseImage = () => {
-    if (selectedImage && selectedImage.startsWith("blob:")) {
-      URL.revokeObjectURL(selectedImage);
-    }
-    setSelectedImage(null);
-  };
+  const uploadItem = async (id) => {
+    const item = queueRef.current.find((candidate) => candidate.id === id);
+    if (!item || item.status === "uploading" || item.status === "success") return false;
 
-  const handleRemoveImage = (index) => {
-    setSelectedFiles((prev) => prev.filter((_, idx) => idx !== index));
-  };
-
-  const handlerenderImageClick = (imageUrl, type) => {
-    setBoxtype(type);
-    setSelectedImage(imageUrl);
-  };
-
-  const handleSelectChange = (e) => {
-    setSelectedOption(e.target.value);
-  };
-
-  const handleSignOut = () => {
-    signOut({ callbackUrl: "/" });
-  };
-
-  const renderButton = () => {
-    if (!isAuthapi) {
-      return (
-        <Link href="/login">
-          <LoginButton>登录</LoginButton>
-        </Link>
+    updateQueueItem(id, { status: "uploading", progress: 0, error: "" });
+    try {
+      const result = await uploadWithProgress(
+        `/api/enableauthapi/${selectedStorage}`,
+        item.file,
+        (progress) => updateQueueItem(id, { progress })
       );
+      updateQueueItem(id, { status: "success", progress: 100, error: "" });
+      setUploadedFiles((files) => [
+        ...files,
+        {
+          id,
+          name: item.file.name,
+          type: item.file.type,
+          url: result.url,
+          fingerprint: fileFingerprint(item.file),
+          storage: selectedStorage,
+        },
+      ]);
+      setTotal((value) => {
+        const number = Number(value);
+        return Number.isFinite(number) ? number + 1 : value;
+      });
+      return true;
+    } catch (error) {
+      updateQueueItem(id, {
+        status: "error",
+        progress: 0,
+        error: error.message || "上传失败，请重试",
+      });
+      return false;
     }
-    switch (Loginuser) {
-      case "user":
-        return <LoginButton onClick={handleSignOut}>登出</LoginButton>;
-      case "admin":
-        return (
-          <Link href="/admin">
-            <LoginButton>管理</LoginButton>
-          </Link>
-        );
-      default:
-        return (
-          <Link href="/login">
-            <LoginButton>登录</LoginButton>
-          </Link>
-        );
+  };
+
+  const handleUploadAll = async () => {
+    const uploadable = queueRef.current.filter(
+      (item) => item.status === "ready" || item.status === "error"
+    );
+    if (!uploadable.length) {
+      toast.info("没有可上传的文件");
+      return;
     }
+    const results = await runWithConcurrency(uploadable, (item) => uploadItem(item.id));
+    const successCount = results.filter(Boolean).length;
+    if (successCount) toast.success(`${successCount} 个文件已上传`);
+    if (successCount !== uploadable.length) toast.error("部分文件上传失败，可在队列中重试");
+  };
+
+  const handlePreview = (id) => {
+    const item = queueRef.current.find((candidate) => candidate.id === id);
+    if (!item) return;
+    const file = item.file;
+    if (file.type.startsWith("image/")) setBoxType("img");
+    else if (file.type.startsWith("video/")) setBoxType("video");
+    else if (isAudioFile(file)) setBoxType("audio");
+    else if (isPdfFile(file)) setBoxType("pdf");
+    else if (isEpubFile(file) || isOfficeFile(file)) setBoxType("doc");
+    else setBoxType("other");
+    setSelectedImage(item.previewUrl);
+  };
+
+  const requestStorageChange = (storage) => {
+    if (storage === "r2" || tgConfirmed) {
+      setSelectedStorage(storage);
+      return;
+    }
+    setShowTgConfirmation(true);
+  };
+
+  const confirmTelegram = () => {
+    setTgConfirmed(true);
+    setSelectedStorage("tgchannel");
+    setShowTgConfirmation(false);
+  };
+
+  const totalSizeMB = (queue.reduce((sum, item) => sum + item.file.size, 0) / (1024 * 1024)).toFixed(2);
+  const canUpload = queue.some((item) => item.status === "ready" || item.status === "error");
+  const isUploading = queue.some((item) => item.status === "uploading");
+
+  const renderNavAction = () => {
+    if (!isAuth) return <Link href="/login" className={actionClassName}>登录</Link>;
+    if (role === "admin") return <Link href="/admin" className={actionClassName}>管理</Link>;
+    return <button type="button" onClick={() => signOut({ callbackUrl: "/" })} className={actionClassName}>登出</button>;
   };
 
   return (
     <main className="min-h-screen flex flex-col">
-      {/* 顶栏：融入内容流，不固定吃屏幕 */}
       <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/70 border-b border-slate-200/60">
         <nav className="max-w-2xl mx-auto px-5 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-teal-600 flex items-center justify-center text-white font-extrabold shadow-[0_2px_8px_rgb(13_148_136/0.3)]">
-              N
-            </div>
-            <span className="text-lg font-extrabold tracking-tight text-slate-900">
-              Namoo Pix
-            </span>
+            <div className="w-9 h-9 rounded-xl bg-teal-600 flex items-center justify-center text-white font-extrabold shadow-[0_2px_8px_rgb(13_148_136/0.3)]">N</div>
+            <span className="text-lg font-extrabold tracking-tight text-slate-900">Namoo Pix</span>
           </div>
-          {renderButton()}
+          {renderNavAction()}
         </nav>
       </header>
 
-      {/* 主内容区 */}
       <div className="flex-1 w-full max-w-2xl mx-auto px-5 py-10">
         <UploadPanel
-          total={Total}
-          ip={IP}
-          selectedOption={selectedOption}
-          onSelectChange={handleSelectChange}
-          isAuth={isAuthapi}
-          selectedFiles={selectedFiles}
-          filePreviews={filePreviews}
-          uploading={uploading}
-          minHeight={calculateMinHeight()}
-          totalSizeMB={getTotalSizeInMB(selectedFiles)}
+          total={total}
+          ip={initialIp}
+          selectedStorage={selectedStorage}
+          onStorageChange={requestStorageChange}
+          isAuth={isAuth}
+          queue={queue}
+          totalSizeMB={totalSizeMB}
+          canUpload={canUpload}
+          isUploading={isUploading}
           fileInputRef={fileInputRef}
           onFileChange={handleFileChange}
           onDrop={handleDrop}
-          onDragOver={handleDragOver}
           onPaste={handlePaste}
-          onImageClick={handleImageClick}
-          onRemoveImage={handleRemoveImage}
-          onUploadOne={(f) => handleUpload(f)}
+          onPreview={handlePreview}
+          onRemove={handleRemove}
+          onRetry={uploadItem}
+          onUploadAll={handleUploadAll}
           onClear={handleClear}
-          onUploadAll={() => handleUpload()}
         />
 
-        <ToastContainer />
-
         <ResultLinks
-          uploadedImages={uploadedImages}
+          uploadedFiles={uploadedFiles}
           activeTab={activeTab}
           onTabChange={setActiveTab}
-          onPreviewClick={handlerenderImageClick}
+          onPreviewClick={(url, type) => {
+            setBoxType(type);
+            setSelectedImage(url);
+          }}
         />
       </div>
 
-      {/* 预览弹层 */}
-      {selectedImage && (
-        <div
-          className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-6"
-          onClick={handleCloseImage}
-        >
-          <div className="relative flex flex-col items-center max-w-4xl max-h-[90vh]">
-            <button
-              type="button"
-              className="absolute -top-12 right-0 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xl backdrop-blur-md"
-              onClick={handleCloseImage}
-              aria-label="关闭预览"
-            >
-              &times;
-            </button>
+      {showTgConfirmation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-5 bg-slate-900/60 backdrop-blur-sm">
+          <section role="dialog" aria-modal="true" aria-labelledby="tg-confirm-title" className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <p className="text-xs font-bold tracking-wide text-amber-700">外部发送</p>
+            <h2 id="tg-confirm-title" className="mt-1 text-xl font-extrabold text-slate-900">发送到 Telegram 频道？</h2>
+            <p className="mt-3 text-sm leading-6 text-slate-600">文件会发至你配置的 Telegram 频道。之后从后台删除只能让本站链接失效，不能删除频道内的原文件。</p>
+            <div className="mt-6 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+              <button type="button" onClick={() => setShowTgConfirmation(false)} className="px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50">继续使用可删除托管</button>
+              <button type="button" onClick={confirmTelegram} className="px-4 py-2.5 rounded-xl bg-amber-600 text-sm font-semibold text-white hover:bg-amber-700">我明白，发送到频道</button>
+            </div>
+          </section>
+        </div>
+      )}
 
-            {boxType === "img" ? (
-              <img
-                src={selectedImage}
-                alt="预览"
-                className="object-contain max-w-full max-h-[85vh] rounded-2xl shadow-2xl"
-              />
-            ) : boxType === "video" ? (
-              <video
-                src={selectedImage}
-                className="object-contain max-w-full max-h-[85vh] rounded-2xl shadow-2xl"
-                controls
-              />
-            ) : boxType === "audio" ? (
-              <div className="p-8 bg-white rounded-2xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
-                <audio src={selectedImage} controls className="w-80 max-w-full" />
-              </div>
-            ) : boxType === "pdf" ? (
-              <div className="p-8 bg-white rounded-2xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
-                <a
-                  href={selectedImage}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-teal-600 font-semibold underline"
-                >
-                  在新标签打开 PDF
-                </a>
-              </div>
-            ) : boxType === "doc" ? (
-              <div className="p-8 bg-white rounded-2xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
-                <a
-                  href={selectedImage}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  download
-                  className="text-teal-600 font-semibold underline"
-                >
-                  下载文档
-                </a>
-              </div>
-            ) : boxType === "other" ? (
-              <div className="p-8 bg-white rounded-2xl shadow-2xl text-slate-900">
-                <p>不支持预览此文件类型</p>
-              </div>
-            ) : (
-              <div className="text-white">未知类型</div>
-            )}
+      {selectedImage && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-6" onClick={() => setSelectedImage(null)}>
+          <div className="relative flex flex-col items-center max-w-4xl max-h-[90vh]">
+            <button type="button" className="absolute -top-12 right-0 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xl backdrop-blur-md" onClick={() => setSelectedImage(null)} aria-label="关闭预览">&times;</button>
+            {boxType === "img" ? <img src={selectedImage} alt="预览" className="object-contain max-w-full max-h-[85vh] rounded-2xl shadow-2xl" /> : null}
+            {boxType === "video" ? <video src={selectedImage} className="object-contain max-w-full max-h-[85vh] rounded-2xl shadow-2xl" controls /> : null}
+            {boxType === "audio" ? <div className="p-8 bg-white rounded-2xl shadow-2xl" onClick={(event) => event.stopPropagation()}><audio src={selectedImage} controls className="w-80 max-w-full" /></div> : null}
+            {boxType === "pdf" ? <div className="p-8 bg-white rounded-2xl shadow-2xl" onClick={(event) => event.stopPropagation()}><a href={selectedImage} target="_blank" rel="noopener noreferrer" className="text-teal-600 font-semibold underline">在新标签打开 PDF</a></div> : null}
+            {boxType === "doc" ? <div className="p-8 bg-white rounded-2xl shadow-2xl" onClick={(event) => event.stopPropagation()}><a href={selectedImage} target="_blank" rel="noopener noreferrer" download className="text-teal-600 font-semibold underline">下载文档</a></div> : null}
+            {boxType === "other" ? <div className="p-8 bg-white rounded-2xl shadow-2xl text-slate-900"><p>不支持预览此文件类型</p></div> : null}
           </div>
         </div>
       )}
 
+      <ToastContainer />
       <Footer />
     </main>
   );

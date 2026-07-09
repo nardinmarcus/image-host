@@ -1,111 +1,108 @@
 export const runtime = 'edge';
+
 import { getRequestContext } from '@cloudflare/next-on-pages';
-import { getRating, incrementTotal, insertTgImgLog } from '@/lib/db';
-import { getClientIp, getReferer, jsonErr, corsHeaders, applyMediaCacheHeaders } from '@/lib/http';
+import { auth } from '@/auth';
+import { getMediaInfo, incrementTotal, insertTgImgLog } from '@/lib/db';
+import { getClientIp, getReferer, jsonErr, corsHeaders, applyMediaCacheHeaders, redirectTo } from '@/lib/http';
 import { nowTime } from '@/lib/time';
 
-export async function OPTIONS(request) {
-  return new Response(null, {
-    headers: corsHeaders
-  });
+export async function OPTIONS() {
+  return new Response(null, { headers: corsHeaders });
 }
 
-
-//https://developers.cloudflare.com/r2/examples/demo-worker/
 export async function GET(request, { params }) {
   const { name } = params;
   const { env, ctx } = getRequestContext();
+  if (!env.IMGRS) return jsonErr('IMGRS is not Set', 500);
 
-  if (!env.IMGRS) {
-    return jsonErr('IMGRS is not Set', 500);
-  }
-
+  const requestUrl = new URL(request.url);
   const clientIp = getClientIp(request);
-  const Referer = getReferer(request);
-  const req_url = new URL(request.url);
+  const referer = getReferer(request);
+  const isAdmin = (await auth())?.user?.role === 'admin';
+  const managedUrl = `/rfile/${name}`;
 
-  const cacheKey = new Request(req_url.toString(), request);
-  const cache = caches.default;
-
-  const isAdminReferer = Referer === `${req_url.origin}/admin`
-    || Referer === `${req_url.origin}/list`
-    || Referer === `${req_url.origin}/`;
-
-  let rating;
-
+  let mediaInfo = null;
   try {
-    rating = await getRating(env, `/rfile/${name}`);
-    if (rating === 3 && !isAdminReferer) {
-      await logRequest(env, name, Referer, clientIp);
-      return Response.redirect(`${req_url.origin}/img/blocked.png`, 302);
+    if (env.IMG) {
+      mediaInfo = await getMediaInfo(env, managedUrl);
+      if (!mediaInfo) return jsonErr('not found', 404);
+    }
+    if (mediaInfo?.rating === 3 && !isAdmin) {
+      ctx.waitUntil(logRequest(env, managedUrl, referer, clientIp));
+      return redirectTo(`${requestUrl.origin}/img/blocked.png`);
     }
   } catch (error) {
-    console.error('rfile getRating error:', error);
+    console.error('rfile metadata error:', error);
+    return jsonErr('internal error');
   }
 
-  // 检查缓存
-  let cachedResponse = await cache.match(cacheKey);
+  const cacheKey = new Request(requestUrl.toString(), request);
+  const cache = caches.default;
+  const cachedResponse = await cache.match(cacheKey);
   if (cachedResponse) {
-    if (!isAdminReferer) {
-      await logRequest(env, name, Referer, clientIp);
-    }
+    if (!isAdmin && env.IMG) ctx.waitUntil(logRequest(env, managedUrl, referer, clientIp));
     return cachedResponse;
   }
 
   try {
-    const object = await env.IMGRS.get(name, {
-      range: request.headers,
-      onlyIf: request.headers,
-    });
+    const range = parseRangeHeader(request.headers.get('range'));
+    const object = await env.IMGRS.get(name, range ? { range } : undefined);
+    if (object === null) return jsonErr('not found', 404);
 
-    if (object === null) {
-      return jsonErr('not found', 404);
-    }
-
-    const headers = new Headers();
-    object.writeHttpMetadata(headers);
+    const headers = mediaHeaders(object.httpMetadata);
     headers.set('etag', object.httpEtag);
-    // 仅完整 200 响应打长缓存；206 分段不进 caches.default
-    if (request.headers.get('range') === null) {
-      applyMediaCacheHeaders(headers);
-    }
-
+    if (request.headers.get('range') === null) applyMediaCacheHeaders(headers);
     if (object.range) {
-      headers.set("content-range", `bytes ${object.range.offset}-${object.range.end ?? object.size - 1}/${object.size}`)
+      headers.set('content-range', `bytes ${object.range.offset}-${object.range.end ?? object.size - 1}/${object.size}`);
     }
-
-    const status = object.body ? (request.headers.get("range") !== null ? 206 : 200) : 304;
-
-    let response_img = new Response(object.body, {
-      headers,
-      status
-    });
-
-    if (status === 200) {
-      ctx.waitUntil(cache.put(cacheKey, response_img.clone()));
-    }
-
-    if (isAdminReferer || !env.IMG) {
-      return response_img;
-    }
-    await logRequest(env, name, Referer, clientIp);
-    return response_img;
-
+    const status = object.body ? (request.headers.get('range') !== null ? 206 : 200) : 304;
+    const response = new Response(object.body, { headers, status });
+    if (status === 200) ctx.waitUntil(cache.put(cacheKey, response.clone()));
+    if (!isAdmin && env.IMG) ctx.waitUntil(logRequest(env, managedUrl, referer, clientIp));
+    return response;
   } catch (error) {
     console.error('rfile/[name] error:', error);
     return jsonErr('internal error');
   }
 }
 
-
-// 异步日志记录
-async function logRequest(env, name, referer, ip) {
+async function logRequest(env, url, referer, ip) {
   try {
     const time = await nowTime();
-    const url = `/rfile/${name}`;
     await insertTgImgLog(env, { url, referer, ip, time });
     await incrementTotal(env, url);
   } catch (error) {
     console.error('rfile logRequest error:', error);
   }
+}
+
+function parseRangeHeader(value) {
+  const match = /^bytes=(\d*)-(\d*)$/.exec(value || '');
+  if (!match || (!match[1] && !match[2])) return null;
+
+  if (!match[1]) return { suffix: Number(match[2]) };
+
+  const offset = Number(match[1]);
+  if (!Number.isSafeInteger(offset)) return null;
+  if (!match[2]) return { offset };
+
+  const end = Number(match[2]);
+  if (!Number.isSafeInteger(end) || end < offset) return null;
+  return { offset, length: end - offset + 1 };
+}
+
+function mediaHeaders(metadata = {}) {
+  const headers = new Headers();
+  const values = {
+    'content-type': metadata.contentType,
+    'content-language': metadata.contentLanguage,
+    'content-disposition': metadata.contentDisposition,
+    'content-encoding': metadata.contentEncoding,
+    'cache-control': metadata.cacheControl,
+  };
+  for (const [name, value] of Object.entries(values)) {
+    if (value) headers.set(name, value);
+  }
+  if (metadata.cacheExpiry) headers.set('expires', new Date(metadata.cacheExpiry).toUTCString());
+  return headers;
 }
