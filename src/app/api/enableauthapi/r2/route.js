@@ -3,6 +3,7 @@ import { getRequestContext } from '@cloudflare/next-on-pages';
 import { auth } from '@/auth';
 import { insertImgInfo } from '@/lib/db';
 import { corsHeaders, jsonErr, getClientIp, getReferer, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from '@/lib/http';
+import { normalizeUploadMime, isAllowedR2Mime } from '@/lib/mime';
 import { nowTime } from '@/lib/time';
 
 export async function POST(request) {
@@ -28,14 +29,18 @@ export async function POST(request) {
 	const file = formData.get('file');
 	if (!file) return jsonErr('No file uploaded', 400);
 	if (file.size > MAX_UPLOAD_BYTES) return jsonErr(`file too large (max ${MAX_UPLOAD_MB}MB)`, 413);
-	if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) return jsonErr('invalid file type', 400);
-	const fileType = file.type;
-	const filename = file.name;
-	const ext = filename.split('.').pop();
+	const fileType = normalizeUploadMime(file);
+	if (!isAllowedR2Mime(fileType)) {
+		return jsonErr('invalid file type (image/video/epub)', 400);
+	}
+	const filename = file.name || 'file';
+	const ext = filename.includes('.')
+		? filename.split('.').pop()
+		: (fileType === 'application/epub+zip' ? 'epub' : 'bin');
 	const key = `${crypto.randomUUID()}.${ext}`;
 
 	const header = new Headers()
-	header.set("content-type", fileType)
+	header.set("content-type", fileType || 'application/octet-stream')
 	header.set("content-length", `${file.size}`)
 
 	try {

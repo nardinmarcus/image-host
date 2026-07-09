@@ -34,13 +34,14 @@ export default function UploadPanel({
     fileInputRef?.current?.click();
   };
 
-  // 选择器始终放宽（含 .pdf），避免默认 R2 时系统对话框把 PDF 灰掉；
+  // 选择器始终放宽（含 .pdf/.epub），避免系统对话框把文档灰掉；
   // 实际上传由当前接口 + 服务端 MIME 校验。
-  const accept = 'image/*,video/*,audio/*,.pdf,application/pdf';
+  const accept =
+    'image/*,video/*,audio/*,.pdf,application/pdf,.epub,application/epub+zip';
   const typeHint =
     selectedOption === 'tgchannel'
-      ? '图片/视频/音频/PDF'
-      : '图片/视频（音频/PDF 请用 TG_Channel）';
+      ? '图片/视频/音频/PDF/EPUB'
+      : '图片/视频/EPUB（音频/PDF 请用 TG_Channel）';
 
   return (
     <>

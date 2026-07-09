@@ -30,11 +30,20 @@ function isPdfFile(file) {
   );
 }
 
+function isEpubFile(file) {
+  const t = (file.type || "").toLowerCase();
+  return (
+    t === "application/epub+zip" ||
+    t === "application/epub" ||
+    /\.epub$/i.test(file.name || "")
+  );
+}
+
 function isAudioFile(file) {
   return (file.type || "").startsWith("audio/") || /\.(mp3|m4a|wav|ogg|flac|aac)$/i.test(file.name || "");
 }
 
-/** 音频/PDF 只能走 TG；选中后自动切换接口，避免 R2 accept 灰掉 PDF */
+/** 音频/PDF 只能走 TG；EPUB 可走 R2，不必强制切换 */
 function needsTgChannel(files) {
   return files.some((f) => isPdfFile(f) || isAudioFile(f));
 }
@@ -235,6 +244,8 @@ export default function HomeClient({
       setBoxtype("audio");
     } else if (isPdfFile(file)) {
       setBoxtype("pdf");
+    } else if (isEpubFile(file)) {
+      setBoxtype("epub");
     } else {
       setBoxtype("other");
     }
@@ -377,6 +388,18 @@ export default function HomeClient({
                   className="text-blue-600 underline"
                 >
                   在新标签打开 PDF
+                </a>
+              </div>
+            ) : boxType === "epub" ? (
+              <div className="p-6 bg-white rounded-lg" onClick={(e) => e.stopPropagation()}>
+                <a
+                  href={selectedImage}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  download
+                  className="text-blue-600 underline"
+                >
+                  下载 EPUB
                 </a>
               </div>
             ) : boxType === "other" ? (

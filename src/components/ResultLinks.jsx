@@ -89,7 +89,7 @@ export default function ResultLinks({
         </div>
       );
     }
-    if (data.type === 'application/pdf') {
+    if (data.type === 'application/pdf' || /\.pdf$/i.test(data.name || '')) {
       return (
         <a
           key={`pdf-${index}`}
@@ -99,6 +99,24 @@ export default function ResultLinks({
           className="w-36 h-40 m-2 flex items-center justify-center bg-slate-100 rounded text-sm text-blue-600 underline"
         >
           PDF 打开
+        </a>
+      );
+    }
+    if (
+      data.type === 'application/epub+zip' ||
+      data.type === 'application/epub' ||
+      /\.epub$/i.test(data.name || '')
+    ) {
+      return (
+        <a
+          key={`epub-${index}`}
+          href={data.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          download
+          className="w-36 h-40 m-2 flex items-center justify-center bg-amber-50 rounded text-sm text-blue-600 underline"
+        >
+          EPUB 下载
         </a>
       );
     }

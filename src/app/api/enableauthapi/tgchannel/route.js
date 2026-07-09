@@ -3,6 +3,7 @@ import { getRequestContext } from '@cloudflare/next-on-pages';
 import { auth } from '@/auth';
 import { insertImgInfo } from '@/lib/db';
 import { corsHeaders, jsonErr, getClientIp, getReferer, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from '@/lib/http';
+import { normalizeUploadMime, isAllowedTgMime } from '@/lib/mime';
 import { nowTime } from '@/lib/time';
 
 export async function POST(request) {
@@ -27,22 +28,10 @@ export async function POST(request) {
 	if (!file) return jsonErr('No file uploaded', 400);
 	if (file.size > MAX_UPLOAD_BYTES) return jsonErr(`file too large (max ${MAX_UPLOAD_MB}MB)`, 413);
 
-	// 部分环境 PDF 的 type 为空或 application/x-pdf，用扩展名兜底
-	const rawType = (file.type || '').toLowerCase();
-	const name = file.name || '';
-	const isPdf =
-		rawType === 'application/pdf' ||
-		rawType === 'application/x-pdf' ||
-		/\.pdf$/i.test(name);
-	const fileType = isPdf ? 'application/pdf' : rawType;
-
-	// TG 频道支持 image / video / audio / pdf（与 fileTypeMap 对齐）
-	const allowed =
-		fileType.startsWith('image/') ||
-		fileType.startsWith('video/') ||
-		fileType.startsWith('audio/') ||
-		fileType === 'application/pdf';
-	if (!allowed) return jsonErr('invalid file type (image/video/audio/pdf)', 400);
+	const fileType = normalizeUploadMime(file);
+	if (!isAllowedTgMime(fileType)) {
+		return jsonErr('invalid file type (image/video/audio/pdf/epub)', 400);
+	}
 
 	const req_url = new URL(request.url);
 
@@ -50,14 +39,15 @@ export async function POST(request) {
 		'image/': { url: 'sendPhoto', type: 'photo' },
 		'video/': { url: 'sendVideo', type: 'video' },
 		'audio/': { url: 'sendAudio', type: 'audio' },
-		'application/pdf': { url: 'sendDocument', type: 'document' }
+		'application/pdf': { url: 'sendDocument', type: 'document' },
+		'application/epub+zip': { url: 'sendDocument', type: 'document' },
 	};
 
 	const matchedKey = Object.keys(fileTypeMap).find((key) =>
 		fileType.startsWith(key) || fileType === key
 	);
 	// 不落 defaultType：避免未知 MIME 误走 sendDocument
-	if (!matchedKey) return jsonErr('invalid file type (image/video/audio/pdf)', 400);
+	if (!matchedKey) return jsonErr('invalid file type (image/video/audio/pdf/epub)', 400);
 	const { url: endpoint, type: fileTypevalue } = fileTypeMap[matchedKey];
 
 

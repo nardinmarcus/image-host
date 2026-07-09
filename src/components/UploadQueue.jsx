@@ -81,12 +81,22 @@ export default function UploadQueue({
                   <p className="text-sm text-center break-all">PDF<br />{file.name}</p>
                 </div>
               )}
+              {(file.type === 'application/epub+zip' ||
+                file.type === 'application/epub' ||
+                /\.epub$/i.test(file.name || '')) && (
+                <div className="flex items-center justify-center w-full h-full bg-amber-50 text-gray-700 p-2">
+                  <p className="text-sm text-center break-all">EPUB<br />{file.name}</p>
+                </div>
+              )}
               {!file.type.startsWith('image/') &&
                 !file.type.startsWith('video/') &&
                 !file.type.startsWith('audio/') &&
                 file.type !== 'application/pdf' &&
                 file.type !== 'application/x-pdf' &&
-                !/\.pdf$/i.test(file.name || '') && (
+                !/\.pdf$/i.test(file.name || '') &&
+                file.type !== 'application/epub+zip' &&
+                file.type !== 'application/epub' &&
+                !/\.epub$/i.test(file.name || '') && (
                 <div className="flex items-center justify-center w-full h-full bg-gray-200 text-gray-700">
                   <p>{file.name}</p>
                 </div>

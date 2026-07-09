@@ -16,6 +16,7 @@ function getContentType(fileName) {
     'webp': 'image/webp',
     'svg': 'image/svg+xml',
     'pdf': 'application/pdf',
+    'epub': 'application/epub+zip',
     'txt': 'text/plain',
     'html': 'text/html',
     'json': 'application/json',
