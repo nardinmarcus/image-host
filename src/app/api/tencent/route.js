@@ -1,18 +1,13 @@
 export const runtime = 'edge';
 import { getRequestContext } from '@cloudflare/next-on-pages';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Max-Age': '86400', // 24 hours
-  'Content-Type': 'application/json'
-};
+import { insertImgInfo } from '@/lib/db';
+import { corsHeaders, jsonErr, getClientIp, getReferer } from '@/lib/http';
+import { nowTime } from '@/lib/time';
 
 export async function POST(request) {
   const { env, cf, ctx } = getRequestContext();
-  const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || request.socket.remoteAddress;
-  const clientIp = ip ? ip.split(',')[0].trim() : 'IP not found';
-  const Referer = request.headers.get('Referer') || "Referer";
+  const clientIp = getClientIp(request);
+  const Referer = getReferer(request);
 
   const req_url = new URL(request.url);
 
@@ -29,7 +24,7 @@ export async function POST(request) {
   }
 
   try {
-
+    // 透传流，无法缓冲校验，依赖上游限制
     const res = await fetch('https://openai.weixin.qq.com/weixinh5/webapp/h774yvzC2xlB4bIgGfX2stc4kvC85J/cos/upload', {
       method: request.method,
       headers: request.headers,
@@ -46,11 +41,11 @@ export async function POST(request) {
 
     try {
       if (env.IMG) {
-        const nowTime = await get_nowTime()
-        await insertImageData(env.IMG, resdata.url, Referer, clientIp, 7, nowTime);
+        const time = await nowTime()
+        await insertImgInfo(env, { url: resdata.url, referer: Referer, ip: clientIp, rating: 7, time });
     }
     } catch (error) {
-      
+
     }
 
 
@@ -63,49 +58,7 @@ export async function POST(request) {
 
 
   } catch (error) {
-    return Response.json({
-      status: 500,
-      message: ` ${error.message}`,
-      success: false
-    }
-      , {
-        status: 500,
-        headers: corsHeaders,
-      })
+    return jsonErr('internal error');
   }
-
-}
-
-
-
-
-async function insertImageData(env, src, referer, ip, rating, time) {
-  try {
-    const instdata = await env.prepare(
-      `INSERT INTO imginfo (url, referer, ip, rating, total, time)
-           VALUES ('${src}', '${referer}', '${ip}', ${rating}, 1, '${time}')`
-    ).run()
-  } catch (error) {
-
-  };
-}
-
-
-
-async function get_nowTime() {
-  const options = {
-    timeZone: 'Asia/Shanghai',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour12: false,
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  };
-  const timedata = new Date();
-  const formattedDate = new Intl.DateTimeFormat('zh-CN', options).format(timedata);
-
-  return formattedDate
 
 }

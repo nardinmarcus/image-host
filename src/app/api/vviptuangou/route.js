@@ -1,30 +1,27 @@
 export const runtime = 'edge';
 import { getRequestContext } from '@cloudflare/next-on-pages';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Max-Age': '86400', // 24 hours
-  'Content-Type': 'application/json'
-};
+import { insertImgInfo } from '@/lib/db';
+import { corsHeaders, jsonErr, getClientIp, getReferer } from '@/lib/http';
+import { nowTime } from '@/lib/time';
 
 /**
- * 
+ *
  * 接口来自：https://github.com/BlueSkyXN/WorkerJS_CloudFlare_ImageBed/blob/main/cloudflare-worker-js-api/API_IMG_vviptuangou.js
- * 
+ *
  */
 
 export async function POST(request) {
   const { env, cf, ctx } = getRequestContext();
-  const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || request.socket.remoteAddress;
-  const clientIp = ip ? ip.split(',')[0].trim() : 'IP not found';
-  const Referer = request.headers.get('Referer') || "Referer";
+  const clientIp = getClientIp(request);
+  const Referer = getReferer(request);
 
   const formData = await request.formData();
   const file = formData.get('file'); // 使用 'image' 字段名
   if (!file) {
     return new Response('No file uploaded', { status: 400 });
   }
+  if (file.size > 5 * 1024 * 1024) return jsonErr('file too large (max 5MB)', 413);
+  if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) return jsonErr('invalid file type', 400);
   try {
     const newFormData = new FormData();
     newFormData.append('file', file, file.name); // 上传到目标服务器时使用 'file'
@@ -47,11 +44,11 @@ export async function POST(request) {
         'Sec-Fetch-Dest': 'empty',
         'Sec-Fetch-Mode': 'cors',
         'Sec-Fetch-Site': 'cross-site',
-        'Sign': 'e346dedcb06bace9cd7ccc6688dd7ca1', // 替换为动态生成的sign值
+        'Sign': env.VVIP_SIGN || '',
         'Source': 'h5',
         'Tenantid': '3',
-        'Timestamp': '1725792862411', // 替换为动态生成的timestamp值
-        'Token': 'b3bc3a220db6317d4a08284c6119d136', // 请替换成有效的 token
+        'Timestamp': `${Date.now()}`,
+        'Token': env.VVIP_TOKEN || '',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36'
       }
     });
@@ -82,8 +79,8 @@ export async function POST(request) {
     }
     try {
       if (env.IMG) {
-        const nowTime = await get_nowTime()
-        await insertImageData(env.IMG, correctImageUrl, Referer, clientIp, 7, nowTime);
+        const time = await nowTime()
+        await insertImgInfo(env, { url: correctImageUrl, referer: Referer, ip: clientIp, rating: 7, time });
       }
     } catch (error) {
 
@@ -99,49 +96,7 @@ export async function POST(request) {
 
 
   } catch (error) {
-    return Response.json({
-      status: 500,
-      message: ` ${error.message}`,
-      success: false
-    }
-      , {
-        status: 500,
-        headers: corsHeaders,
-      })
+    return jsonErr('internal error');
   }
-
-}
-
-
-
-
-async function insertImageData(env, src, referer, ip, rating, time) {
-  try {
-    const instdata = await env.prepare(
-      `INSERT INTO imginfo (url, referer, ip, rating, total, time)
-           VALUES ('${src}', '${referer}', '${ip}', ${rating}, 1, '${time}')`
-    ).run()
-  } catch (error) {
-
-  };
-}
-
-
-
-async function get_nowTime() {
-  const options = {
-    timeZone: 'Asia/Shanghai',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour12: false,
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  };
-  const timedata = new Date();
-  const formattedDate = new Intl.DateTimeFormat('zh-CN', options).format(timedata);
-
-  return formattedDate
 
 }

@@ -1,35 +1,25 @@
 export const runtime = 'edge';
 import { getRequestContext } from '@cloudflare/next-on-pages';
-
-
-
-const corsHeaders = {
-	'Access-Control-Allow-Origin': '*',
-	'Access-Control-Allow-Headers': 'Content-Type',
-	'Access-Control-Max-Age': '86400', // 24 hours
-	'Content-Type': 'application/json'
-};
+import { insertImgInfo } from '@/lib/db';
+import { corsHeaders, jsonErr, getClientIp, getReferer } from '@/lib/http';
+import { nowTime } from '@/lib/time';
 
 export async function POST(request) {
 	const { env, cf, ctx } = getRequestContext();
-	
+
 	if (!env.TG_BOT_TOKEN || !env.TG_CHAT_ID) {
-		return Response.json({
-			status: 500,
-			message: `TG_BOT_TOKEN or TG_CHAT_ID is not Set`,
-			success: false
-		}, {
-			status: 500,
-			headers: corsHeaders,
-		})
+		return jsonErr('TG_BOT_TOKEN or TG_CHAT_ID is not Set', 500)
 	}
 
-	const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || request.socket.remoteAddress;
-	const clientIp = ip ? ip.split(',')[0].trim() : 'IP not found';
-	const Referer = request.headers.get('Referer') || "Referer";
+	const clientIp = getClientIp(request);
+	const Referer = getReferer(request);
 
 	const formData = await request.formData();
-	const fileType = formData.get('file').type;
+	const file = formData.get('file');
+	if (!file) return jsonErr('No file uploaded', 400);
+	if (file.size > 5 * 1024 * 1024) return jsonErr('file too large (max 5MB)', 413);
+	if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) return jsonErr('invalid file type', 400);
+	const fileType = file.type;
 
 	const req_url = new URL(request.url);
 
@@ -81,10 +71,10 @@ export async function POST(request) {
 				headers: corsHeaders,
 			})
 		} else {
+			const time = await nowTime()
 			try {
 				const rating_index = await getRating(env, `${fileData.file_id}`);
-				const nowTime = await get_nowTime()
-				await insertImageData(env.IMG, `/cfile/${fileData.file_id}`, Referer, clientIp, rating_index, nowTime);
+				await insertImgInfo(env, { url: `/cfile/${fileData.file_id}`, referer: Referer, ip: clientIp, rating: rating_index, time });
 
 				return Response.json({
 					...data,
@@ -92,43 +82,23 @@ export async function POST(request) {
 					Referer: Referer,
 					clientIp: clientIp,
 					rating_index: rating_index,
-					nowTime: nowTime
+					nowTime: time
 				}, {
 					status: 200,
 					headers: corsHeaders,
 				})
 
-
-
-
 			} catch (error) {
 				console.log(error);
-				await insertImageData(env.IMG, `/cfile/${fileData.file_id}`, Referer, clientIp, -1, nowTime);
+				await insertImgInfo(env, { url: `/cfile/${fileData.file_id}`, referer: Referer, ip: clientIp, rating: -1, time });
 
 
-				return Response.json({
-					"msg": error.message
-				}, {
-					status: 500,
-					headers: corsHeaders,
-				})
+				return jsonErr('internal error');
 			}
 		}
 
-
-
-
-
-
 	} catch (error) {
-		return Response.json({
-			status: 500,
-			message: ` ${error.message}`,
-			success: false
-		}, {
-			status: 500,
-			headers: corsHeaders,
-		})
+		return jsonErr('internal error');
 	}
 
 }
@@ -189,40 +159,6 @@ const getFile = async (response) => {
 		return null;
 	}
 };
-
-
-
-async function insertImageData(env, src, referer, ip, rating, time) {
-	try {
-		const instdata = await env.prepare(
-			`INSERT INTO imginfo (url, referer, ip, rating, total, time)
-           VALUES ('${src}', '${referer}', '${ip}', ${rating}, 1, '${time}')`
-		).run()
-	} catch (error) {
-
-	};
-}
-
-
-
-async function get_nowTime() {
-	const options = {
-		timeZone: 'Asia/Shanghai',
-		year: 'numeric',
-		month: 'long',
-		day: 'numeric',
-		hour12: false,
-		hour: '2-digit',
-		minute: '2-digit',
-		second: '2-digit'
-	};
-	const timedata = new Date();
-	const formattedDate = new Intl.DateTimeFormat('zh-CN', options).format(timedata);
-
-	return formattedDate
-
-}
-
 
 
 async function getRating(env, url) {

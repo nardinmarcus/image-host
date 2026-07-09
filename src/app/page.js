@@ -139,7 +139,6 @@ export default function Home() {
 
   const handleClear = () => {
     setSelectedFiles([]);
-    setUploadStatus('');
     // setUploadedImages([]);
   };
 

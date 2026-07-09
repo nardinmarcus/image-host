@@ -1,25 +1,17 @@
 export const runtime = 'edge';
 import { getRequestContext } from '@cloudflare/next-on-pages';
-
-
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Max-Age': '86400', // 24 hours
-  'Content-Type': 'application/json'
-};
+import { insertImgInfo } from '@/lib/db';
+import { corsHeaders, jsonErr, getClientIp, getReferer } from '@/lib/http';
+import { nowTime } from '@/lib/time';
 
 export async function POST(request) {
   const { env, cf, ctx } = getRequestContext();
 
-
-  const ip = request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || request.socket.remoteAddress;
-  const clientIp = ip ? ip.split(',')[0].trim() : 'IP not found';
-  const Referer = request.headers.get('Referer') || "Referer";
+  const clientIp = getClientIp(request);
+  const Referer = getReferer(request);
 
   const req_url = new URL(request.url);
-  
+
   const customDomain = env.CUSTOM_DOMAIN || req_url.origin;
 
 
@@ -35,6 +27,7 @@ export async function POST(request) {
   }
 
   try {
+    // 透传流，无法缓冲校验，依赖上游限制
     const res = await fetch(`https://telegra.ph/upload?source=bugtracker`, {
     // const res = await fetch(`https://telegra.ph/upload`, {
       method: request.method,
@@ -61,17 +54,17 @@ export async function POST(request) {
         headers: corsHeaders,
       })
     } else {
+      const time = await nowTime()
       try {
         const rating_index = await getRating(env, resdata.src)
-        const nowTime = await get_nowTime()
-        await insertImageData(env.IMG, resdata.src, Referer, clientIp, rating_index, nowTime);
+        await insertImgInfo(env, { url: resdata.src, referer: Referer, ip: clientIp, rating: rating_index, time });
         return Response.json({
           ...data,
           msg: "2",
           Referer:Referer,
           clientIp:clientIp,
           rating_index:rating_index,
-          nowTime:nowTime
+          nowTime:time
         }, {
           status: 200,
           headers: corsHeaders,
@@ -79,15 +72,10 @@ export async function POST(request) {
 
       } catch (error) {
         console.log(error);
-        await insertImageData(env.IMG, resdata.src, Referer, clientIp, -1, nowTime);
+        await insertImgInfo(env, { url: resdata.src, referer: Referer, ip: clientIp, rating: -1, time });
 
 
-        return Response.json({
-          "msg": error.message
-        }, {
-          status: 200,
-          headers: corsHeaders,
-        })
+        return jsonErr('internal error');
       }
 
 
@@ -96,54 +84,8 @@ export async function POST(request) {
 
   } catch (error) {
     // console.log(error);
-    return Response.json({
-      status: 500,
-      message: ` ${error.message}`,
-      success: false
-    }
-      , {
-        status: 500,
-        headers: corsHeaders,
-      })
-
+    return jsonErr('internal error');
   }
-
-}
-
-
-
-
-
-
-
-async function insertImageData(env, src, referer, ip, rating, time) {
-  try {
-    const instdata = await env.prepare(
-      `INSERT INTO imginfo (url, referer, ip, rating, total, time)
-           VALUES ('${src}', '${referer}', '${ip}', ${rating}, 1, '${time}')`
-    ).run()
-  } catch (error) {
-
-  };
-}
-
-
-
-async function get_nowTime() {
-  const options = {
-    timeZone: 'Asia/Shanghai',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour12: false,
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  };
-  const timedata = new Date();
-  const formattedDate = new Intl.DateTimeFormat('zh-CN', options).format(timedata);
-
-  return formattedDate
 
 }
 
@@ -169,4 +111,3 @@ async function getRating(env, url) {
     return -1
   }
 }
-
