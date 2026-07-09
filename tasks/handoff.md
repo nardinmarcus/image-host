@@ -92,18 +92,23 @@ export async function GET(request) {
 - 统一上限 **20MB**（`src/lib/http.js` 的 `MAX_UPLOAD_BYTES` / `MAX_UPLOAD_MB`）
 - 原因：Telegram Bot `getFile` 约 20MB；再大 cfile 读回会挂
 
-### 已完成 · tgchannel audio/pdf（commit `30916f4`，已部署）
-- 白名单恢复：`image/*` / `video/*` / `audio/*` / `application/pdf`
-- `getFile` 补 audio/voice；失败返回 502
-- cfile 补 audio/pdf 扩展名与魔术字节（RIFF 先判 WAV 再 WEBP）
-- 前端：选 TG_Channel 时 accept 含 audio/pdf；队列/预览支持音频与 PDF
-- 未登录 POST tgchannel 仍 401；R2 仍仅 image/video
+### 已完成 · tgchannel audio/pdf + 20MB + PDF 选择（用户确认 OK）
+- 白名单：`image/*` / `video/*` / `audio/*` / `application/pdf`；getFile 含 audio/voice
+- 上传上限 20MB（对齐 TG getFile）
+- accept 始终含 `.pdf`；选 PDF/音频自动切 TG_Channel
+- 用户验证：功能正常
+
+### 已完成 · time ISO8601（本轮）
+- `nowTime()` → `2026-07-09T22:14:18+08:00`（Asia/Shanghai）
+- `formatTimeDisplay()`：admin 表格展示；兼容旧「2026年7月9日 …」
+- **不做全量 D1 迁移**（旧行保留中文，新行 ISO；展示层兼容）。若以后要按 time 排序/筛选再写迁移脚本
 
 ### 下一步（按优先级）
-1. **time 字段改 ISO8601**（`nowTime()` 仍本地化字符串；需迁移，D1 不可逆，谨慎）
+1. **（可选）历史 time 迁移脚本**：中文日期 → ISO（D1 不可逆，需备份后批处理）
+2. **清理残留 console / 死代码**（低优先级）
 
 ### 风险高（单独做）
-6. **迁移 OpenNext**（`@cloudflare/next-on-pages` 已于 2025-09-29 归档）：要改 15+ route + 去掉 `runtime = 'edge'` + middleware 兼容 + 构建重做。**单独完整周期**
+3. **迁移 OpenNext**（`@cloudflare/next-on-pages` 已于 2025-09-29 归档）：要改 15+ route + 去掉 `runtime = 'edge'` + middleware 兼容 + 构建重做。**单独完整周期**
 
 ## 6. 关键陷阱（踩过坑，务必避免）
 

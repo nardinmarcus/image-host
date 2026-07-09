@@ -21,7 +21,7 @@
 ### 阶段 1 · 清零 SQL 注入 + 抽公共层（1 天）
 - [x] 新建 `src/lib/db.js`（全参数化：insertImgInfo/getRating/incrementTotal/updateRating/deleteImgInfo/searchImgInfo/searchLogs/countImgInfo）
 - [x] 新建 `src/lib/http.js`（corsHeaders/jsonOk/jsonErr 脱敏/getClientIp 移除 socket/getReferer）
-- [x] 新建 `src/lib/time.js`（nowTime 收口 9 处复制，格式阶段 6 改 ISO）
+- [x] 新建 `src/lib/time.js`（nowTime 收口；已改 ISO8601 + formatTimeDisplay 兼容旧串）
 - [x] 替换 13 路由拼接 SQL：admin×4 + file/cfile/rfile×3 + 上传×6 全部改完，grep 确认无带插值的 prepare 拼接
 - [x] 输入校验：delete 的 name、block 的 rating 已校验；page 用 toPage 兜底；query 经 .bind() 安全
 - 验证：`grep -rn 'prepare(\`' src/app/api` 无残留拼接；admin 搜索/删除/封禁/日志功能正常

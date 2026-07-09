@@ -5,6 +5,7 @@ import React, { useRef } from 'react';
 import TooltipItem from '@/components/Tooltip';
 import FullScreenIcon from "@/components/FullScreenIcon"
 import { PhotoProvider, PhotoView } from 'react-photo-view';
+import { formatTimeDisplay } from '@/lib/time';
 
 export default function Table({ data: initialData = [] }) {
 
@@ -261,7 +262,7 @@ export default function Table({ data: initialData = [] }) {
 
                                 </td>
                                 <td className="text-center py-2 px-4 border-b border-gray-200 text-sm text-gray-700 max-w-48">
-                                    {item.time}
+                                    {formatTimeDisplay(item.time)}
                                 </td>
                                 <td className="text-center py-2 px-4 border-b border-gray-200 text-sm text-gray-700 max-w-48 break-all">
                                     <TooltipItem tooltipsText={item.referer} position="bottom" >{item.referer}</TooltipItem>
