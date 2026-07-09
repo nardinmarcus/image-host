@@ -1,14 +1,12 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 
-// 常量时间字符串比较，防御时序攻击（edge runtime 无 crypto.timingSafeEqual，用纯 JS 实现）
+// 常量时间字符串比较，防御时序攻击（用 charCodeAt 避免 TextEncoder 在 edge 的兼容问题）
 function safeEqual(a, b) {
   if (typeof a !== 'string' || typeof b !== 'string') return false;
-  const ea = new TextEncoder().encode(a);
-  const eb = new TextEncoder().encode(b);
-  if (ea.length !== eb.length) return false;
+  if (a.length !== b.length) return false;
   let diff = 0;
-  for (let i = 0; i < ea.length; i++) diff |= ea[i] ^ eb[i];
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diff === 0;
 }
 
@@ -29,7 +27,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             password: process.env.REGULAR_PASS
           };
 
-          if (credentials.username === adminUser.username && credentials.password === adminUser.password) {
+          if (safeEqual(credentials.username, adminUser.username) && safeEqual(credentials.password, adminUser.password)) {
             const user = {
               id: 1,
               name: process.env.BASIC_USER,
@@ -41,7 +39,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }
 
           // 验证普通用户
-          if (credentials.username === regularUser.username && credentials.password === regularUser.password) {
+          if (safeEqual(credentials.username, regularUser.username) && safeEqual(credentials.password, regularUser.password)) {
             const user = {
               id: 2,
               name: process.env.REGULAR_USER,
