@@ -1,31 +1,67 @@
 export const runtime = 'edge';
 import { getRequestContext } from '@cloudflare/next-on-pages';
 import { insertTgImgLog, getRating, incrementTotal, insertImgInfo } from '@/lib/db';
-import { getClientIp, getReferer, jsonErr } from '@/lib/http';
+import { getClientIp, getReferer, jsonErr, applyMediaCacheHeaders } from '@/lib/http';
 import { nowTime } from '@/lib/time';
+
+function withMediaCache(res) {
+  const headers = new Headers(res.headers);
+  if (res.status === 200) {
+    applyMediaCacheHeaders(headers);
+  } else {
+    headers.set('Cache-Control', 'no-store');
+  }
+  return new Response(res.body, {
+    status: res.status,
+    statusText: res.statusText,
+    headers,
+  });
+}
 
 export async function GET(request, { params }) {
   const { name } = params;
-  const { env } = getRequestContext();
+  const { env, ctx } = getRequestContext();
 
   const clientIp = getClientIp(request);
   const Referer = getReferer(request);
   const req_url = new URL(request.url);
   const url = `/file/${name}`;
 
+  const cacheKey = new Request(req_url.toString(), request);
+  const cache = caches.default;
+
   try {
+    const isAdminReferer = Referer === `${req_url.origin}/admin`
+      || Referer === `${req_url.origin}/list`
+      || Referer === `${req_url.origin}/`;
+
+    // 已有缓存：直接返回（仍记访问日志）
+    const cachedResponse = await cache.match(cacheKey);
+    if (cachedResponse) {
+      if (!isAdminReferer && env.IMG) {
+        const time = await nowTime();
+        try {
+          await insertTgImgLog(env, { url, referer: Referer, ip: clientIp, time });
+          await incrementTotal(env, url);
+        } catch (error) {
+          console.error('file cache log error:', error);
+        }
+      }
+      return cachedResponse;
+    }
+
     const res = await fetch(`https://telegra.ph/file/${name}`, {
       method: request.method,
       headers: request.headers,
       body: request.body,
     });
 
-    const isAdminReferer = Referer === `${req_url.origin}/admin`
-      || Referer === `${req_url.origin}/list`
-      || Referer === `${req_url.origin}/`;
-
     if (isAdminReferer || !env.IMG) {
-      return res;
+      const out = withMediaCache(res);
+      if (out.status === 200) {
+        ctx.waitUntil(cache.put(cacheKey, out.clone()));
+      }
+      return out;
     }
 
     const time = await nowTime();
@@ -41,7 +77,11 @@ export async function GET(request, { params }) {
       if (rating === 3) {
         return Response.redirect(`${req_url.origin}/img/blocked.png`, 302);
       }
-      return res;
+      const out = withMediaCache(res);
+      if (out.status === 200) {
+        ctx.waitUntil(cache.put(cacheKey, out.clone()));
+      }
+      return out;
     }
 
     if (env.PROXYALLIMG) {
@@ -51,10 +91,14 @@ export async function GET(request, { params }) {
         if (rating_index === 3) {
           return Response.redirect(`${req_url.origin}/img/blocked.png`, 302);
         }
-        return res;
+        const out = withMediaCache(res);
+        if (out.status === 200) {
+          ctx.waitUntil(cache.put(cacheKey, out.clone()));
+        }
+        return out;
       } catch (error) {
         console.error('file moderate error:', error);
-        return res;
+        return withMediaCache(res);
       }
     }
 

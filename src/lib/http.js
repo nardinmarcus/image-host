@@ -36,3 +36,19 @@ export function getClientIp(request) {
 export function getReferer(request) {
   return request.headers.get('Referer') || 'Referer';
 }
+
+/**
+ * 媒体分发缓存策略（rfile/cfile/file 统一）：
+ * - 浏览器 1h（删除后用户侧不至于一年残留）
+ * - 共享/edge 1d（配合 caches.default；删 R2 时已 caches.default.delete）
+ * UUID 文件名本身不可变；勿对 404/鉴黄拦截用此头。
+ */
+export const MEDIA_CACHE_CONTROL = 'public, max-age=3600, s-maxage=86400';
+
+export function applyMediaCacheHeaders(headers) {
+  if (headers instanceof Headers) {
+    headers.set('Cache-Control', MEDIA_CACHE_CONTROL);
+    return headers;
+  }
+  return { ...headers, 'Cache-Control': MEDIA_CACHE_CONTROL };
+}

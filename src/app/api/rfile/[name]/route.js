@@ -1,7 +1,7 @@
 export const runtime = 'edge';
 import { getRequestContext } from '@cloudflare/next-on-pages';
 import { getRating, incrementTotal, insertTgImgLog } from '@/lib/db';
-import { getClientIp, getReferer, jsonErr, corsHeaders } from '@/lib/http';
+import { getClientIp, getReferer, jsonErr, corsHeaders, applyMediaCacheHeaders } from '@/lib/http';
 import { nowTime } from '@/lib/time';
 
 export async function OPTIONS(request) {
@@ -65,6 +65,10 @@ export async function GET(request, { params }) {
     const headers = new Headers();
     object.writeHttpMetadata(headers);
     headers.set('etag', object.httpEtag);
+    // 仅完整 200 响应打长缓存；206 分段不进 caches.default
+    if (request.headers.get('range') === null) {
+      applyMediaCacheHeaders(headers);
+    }
 
     if (object.range) {
       headers.set("content-range", `bytes ${object.range.offset}-${object.range.end ?? object.size - 1}/${object.size}`)

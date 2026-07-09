@@ -61,7 +61,7 @@
 - 验证：build 不卡 / 上传读取删除后台全功能正常 / pages.dev 跳转仍生效
 
 ### 阶段 6 · 性能与工程化（1-2 天）
-- [ ] `file`/`cfile`/`rfile` 统一 `Cache-Control` + 完善 `caches.default`（rfile/cfile 已有 cache API；缺响应头；file 待补）← **下一步**
+- [x] `file`/`cfile`/`rfile` 统一 `Cache-Control`（`MEDIA_CACHE_CONTROL`：max-age=3600,s-maxage=86400）+ `file` 补 `caches.default`
 - [ ] 首页拆 client/server 边界（统计、登录态服务端取数）
 - [ ] R2 上传 API 强制鉴权（ENABLE_AUTH_API=false 时未登录仍可 POST `/api/enableauthapi/r2`）
 - [x] 补 Top20 统计 API + 后台 Tab

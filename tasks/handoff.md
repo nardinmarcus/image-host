@@ -71,12 +71,15 @@ export async function GET(request) {
 - admin useCallback 依赖数组补齐
 - **用户验证通过**：① 登录后 R2 上传 ② 预览/链接 Tab/复制 ③ 后台统计 Tab ④ 测试图清理
 
+### 已完成 · Cache-Control（本轮）
+- `src/lib/http.js`：`MEDIA_CACHE_CONTROL` / `applyMediaCacheHeaders`
+- `rfile`/`cfile`/`file`：成功 200 响应带 `public, max-age=3600, s-maxage=86400`；`file` 补 `caches.default`
+
 ### 下一步（按优先级）
-1. **统一 Cache-Control**（`rfile`/`cfile` 已有 `caches.default` 但缺明确 `Cache-Control`；`file` 无缓存）→ 当前进行中
-2. **首页 client/server 边界**（统计/登录态服务端取数，减少首屏串行 3 个 API）
-3. **R2 上传 API 鉴权加固**（`ENABLE_AUTH_API=false` 时 middleware 不拦 `/api/enableauthapi/*`，未登录 POST R2 仍可成功；UI 已挡，API 未挡）
-4. **tgchannel audio/pdf 收窄**（MIME 只放行 image/video，fileTypeMap 仍写 audio/pdf）：需用户确认是否放宽
-5. **time 字段改 ISO8601**（`nowTime()` 仍本地化字符串；需迁移，D1 不可逆，谨慎）
+1. **首页 client/server 边界**（统计/登录态服务端取数，减少首屏串行 3 个 API）
+2. **R2 上传 API 鉴权加固**（`ENABLE_AUTH_API=false` 时 middleware 不拦 `/api/enableauthapi/*`，未登录 POST R2 仍可成功；UI 已挡，API 未挡）
+3. **tgchannel audio/pdf 收窄**（MIME 只放行 image/video，fileTypeMap 仍写 audio/pdf）：需用户确认是否放宽
+4. **time 字段改 ISO8601**（`nowTime()` 仍本地化字符串；需迁移，D1 不可逆，谨慎）
 
 ### 风险高（单独做）
 6. **迁移 OpenNext**（`@cloudflare/next-on-pages` 已于 2025-09-29 归档）：要改 15+ route + 去掉 `runtime = 'edge'` + middleware 兼容 + 构建重做。**单独完整周期**

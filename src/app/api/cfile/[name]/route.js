@@ -1,7 +1,7 @@
 export const runtime = 'edge';
 import { getRequestContext } from '@cloudflare/next-on-pages';
 import { getRating, incrementTotal, insertTgImgLog } from '@/lib/db';
-import { getClientIp, getReferer, jsonErr, corsHeaders } from '@/lib/http';
+import { getClientIp, getReferer, jsonErr, corsHeaders, applyMediaCacheHeaders } from '@/lib/http';
 import { nowTime } from '@/lib/time';
 
 
@@ -109,11 +109,11 @@ export async function GET(request, { params }) {
     // 文件名补扩展名（TG file_path 常无扩展名，如 file_244）
     const ext = mimeType ? mimeType.split('/')[1].replace('jpeg', 'jpg') : '';
     const downloadName = ext && !fileName.includes('.') ? `${fileName}.${ext}` : fileName;
-    const responseHeaders = {
+    const responseHeaders = applyMediaCacheHeaders({
       "Content-Disposition": `attachment; filename=${downloadName}`,
       "Access-Control-Allow-Origin": "*",
       "Content-Type": contentType
-    };
+    });
     const response_img = new Response(fileBuffer, {
       headers: responseHeaders
     });
