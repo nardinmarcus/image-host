@@ -217,10 +217,32 @@ export default function AdminApiKeys() {
       <section className="bg-white border border-stone-200 rounded-xl p-5 prose prose-sm prose-stone max-w-none">
         <h2 className="text-base font-semibold text-stone-900 !mt-0">API 文档</h2>
 
-        <h3 className="text-sm font-semibold">Base URL</h3>
+        <div className="not-prose mb-4 p-3 rounded-lg bg-sky-50 border border-sky-100 text-sm text-stone-700">
+          <p className="font-medium text-stone-900 mb-1">真正发上传请求时用的地址：</p>
+          <code className="block break-all text-xs bg-white border border-sky-100 rounded px-2 py-2 mb-2">
+            {baseUrl}/api/v1/upload
+          </code>
+          <button
+            type="button"
+            className="text-xs px-3 py-1.5 rounded-lg bg-sky-800 text-white"
+            onClick={() => copy(`${baseUrl}/api/v1/upload`)}
+          >
+            复制上传 URL
+          </button>
+          <p className="mt-2 text-xs text-stone-500">
+            下面的 Base URL 只是站点根地址，不能单独用来上传。
+          </p>
+        </div>
+
+        <h3 className="text-sm font-semibold">Base URL（站点根，不是上传地址）</h3>
         <pre className="bg-stone-50 border border-stone-200 rounded-lg p-3 text-xs overflow-x-auto">
           {baseUrl}
         </pre>
+        <p className="text-stone-600 text-sm">
+          完整上传路径 = Base URL + <code>/api/v1/upload</code>
+          <br />
+          即：<code className="text-xs">{baseUrl}/api/v1/upload</code>
+        </p>
         <button
           type="button"
           className="text-xs text-sky-700 mb-4"
@@ -239,7 +261,10 @@ X-API-Key: ih_xxxxxxxx`}
 
         <h3 className="text-sm font-semibold">上传文件</h3>
         <p className="text-stone-600">
-          <code>POST /api/v1/upload</code> · multipart/form-data · 字段名 <code>file</code>
+          <strong>POST</strong>{' '}
+          <code>{baseUrl}/api/v1/upload</code>
+          <br />
+          Content-Type: multipart/form-data · 字段名 <code>file</code>
           （也接受 <code>image</code> / <code>media</code>）
         </p>
         <p className="text-stone-600">
@@ -287,8 +312,11 @@ X-API-Key: ih_xxxxxxxx`}
 
         <h4 className="text-sm font-semibold">n8n / Make / 脚本</h4>
         <p className="text-stone-600">
-          HTTP 节点：Method POST，URL 填 Base URL + <code>/api/v1/upload</code>，
-          Header 加 <code>Authorization: Bearer …</code>，Body 选 multipart，字段 <code>file</code>。
+          HTTP 节点：Method <strong>POST</strong>，URL 直接填完整地址
+          <code className="text-xs"> {baseUrl}/api/v1/upload</code>
+          （不要只填 Base URL），Header 加{' '}
+          <code>Authorization: Bearer …</code>，Body 选 multipart，字段{' '}
+          <code>file</code>。
         </p>
       </section>
     </div>
