@@ -82,10 +82,14 @@ export async function GET(request) {
 - middleware：`/api/enableauthapi/r2|tgchannel` 始终 401（不依赖 `ENABLE_AUTH_API`）；`isauth` 仍可匿名探测
 - 生产：未登录 POST r2/tgchannel → 401；isauth 仍 200；admin 仍 401
 
+### 已完成 · 首页 SSR 边界（本轮）
+- `src/app/page.js`：edge RSC，服务端取 `countImgInfo` + IP headers + `auth()` session
+- `src/components/HomeClient.jsx`：纯交互层，props 注入 total/ip/role；上传成功本地 +total
+- 首屏不再请求 `/api/total`、`/api/ip`、`/api/enableauthapi/isauth`
+
 ### 下一步（按优先级）
-1. **首页 client/server 边界**（统计/登录态服务端取数，减少首屏串行 3 个 API）
-2. **tgchannel audio/pdf 收窄**（MIME 只放行 image/video，fileTypeMap 仍写 audio/pdf）：需用户确认是否放宽
-3. **time 字段改 ISO8601**（`nowTime()` 仍本地化字符串；需迁移，D1 不可逆，谨慎）
+1. **tgchannel audio/pdf 收窄**（MIME 只放行 image/video，fileTypeMap 仍写 audio/pdf）：需用户确认是否放宽
+2. **time 字段改 ISO8601**（`nowTime()` 仍本地化字符串；需迁移，D1 不可逆，谨慎）
 
 ### 风险高（单独做）
 6. **迁移 OpenNext**（`@cloudflare/next-on-pages` 已于 2025-09-29 归档）：要改 15+ route + 去掉 `runtime = 'edge'` + middleware 兼容 + 构建重做。**单独完整周期**
