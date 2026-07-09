@@ -1,175 +1,145 @@
 # image-host 交接文档（Handoff）
 
-> 供下一个 Agent/模型接手。读完本文档 + `tasks/todo.md` + `src/lib/` 即可独立工作。
-> 项目根：`/Users/dapeng/projects/image-host` | 域名：image.namooca.com | 最后更新：2026-07-09
+> 供下一个 Agent/模型接手。读完本文档 + `tasks/todo.md` + `CHANGELOG.md` + `src/lib/` 即可独立工作。  
+> 项目根：`/Users/dapeng/projects/image-host` | 生产域名：https://image.namooca.com  
+> **最后更新：2026-07-10**（今日收工）
 
 ---
 
 ## 1. 项目快照
 
-telegraph-Image 的 fork，Next.js 14.2.5 (App Router) + next-auth v5 beta + Cloudflare D1/R2/Pages。多源图床（R2/TG 频道/telegraph/58/腾讯/vviptuangou），已切换 **R2 为默认主存储**。约 4000 行，34 源文件。
+[telegraph-Image](https://github.com/x-dr/telegraph-Image) 的 fork（私有增强版）。
 
-## 2. 当前状态：核心完成，可上线
+| 项 | 值 |
+|----|-----|
+| 框架 | Next.js **14.2.35** App Router + `@cloudflare/next-on-pages` |
+| 认证 | next-auth **v5 beta.31** Credentials |
+| 存储 | **R2 默认** + TG 频道（cfile）；telegraph/58 等 fallback 默认不暴露 UI |
+| 数据 | Cloudflare **D1**（`IMG` binding）+ **R2**（`IMGRS`） |
+| 部署 | Cloudflare Pages 连 Git `main`；本地 `next build` 在 Node 22 上会卡 |
 
-**已完成并生产验证**（main 分支，CF Pages 部署中）：
-- 安全：SQL 注入清零、JWT fail-fast、3 个 next CVE + next-auth cookie 漏洞修复、admin 二次鉴权、上传校验、R2 uuid、时序防护
-- 存储：默认 R2（可删/无乱码）、cfile 乱码修复、admin/delete 联动删 R2 + 清缓存
-- 工程化：`src/lib` 公共层、Top20 统计、CI、死代码清理、内存泄漏修复、a11y、中文化
+---
 
-**验证过的功能**：登录、上传（正常图 + 体积上限）、R2 删除（`?nocache` 404）、Top20 统计、缩略图/预览。
+## 2. 当前状态：可上线，今日功能闭环
+
+**安全 / 核心**：SQL 全参数化、JWT 无 fallback、admin 二次鉴权、上传 size+MIME、R2 uuid key、safeEqual（charCodeAt）。
+
+**产品**：多类型上传、自动切 TG 发频道、后台运维台、开放 API Key 上传——均已生产验证。
+
+**今日收工边界**：API 相关停在此；未做 Key 限流 / 上传审计日志 / OpenNext。
+
+---
 
 ## 3. 架构与关键文件
 
-### 公共层（`src/lib/`，整改时新建，务必复用）
-- `db.js` —— 所有 D1 查询的统一入口，**全参数化**（`getRating`/`insertImgInfo`/`searchImgInfo`/`searchLogs`/`getTopStats`/`incrementTotal`/`updateRating`/`deleteImgInfo`/`countImgInfo`）。新增查询一律加这里，禁止 route 内拼 SQL
-- `http.js` —— `corsHeaders`/`jsonOk(data,status)`/`jsonErr(msg,status)`（脱敏，不返回 error.message）/`getClientIp`（已移除 edge 不存在的 `request.socket`）/`getReferer`
-- `time.js` —— `nowTime()`（收口 9 处复制；格式暂保持本地化字符串，阶段 6 未改 ISO）
+### 公共层（`src/lib/`，新增查询务必走这里）
 
-### Route 模式（新 route 照此写）
-```js
-import { getRequestContext } from '@cloudflare/next-on-pages';
-import { auth } from '@/auth';
-import { ... } from '@/lib/db';
-import { jsonOk, jsonErr } from '@/lib/http';
-export const runtime = 'edge';
-export async function GET(request) {
-  const session = await auth();
-  if (session?.user?.role !== 'admin') return jsonErr('forbidden', 403);
-  const { env } = getRequestContext();
-  // 用 lib 查询，jsonOk/jsonErr 返回
-}
-```
+| 文件 | 职责 |
+|------|------|
+| `db.js` | D1 全参数化；`imginfo` mime/kind；`api_keys` CRUD；列表筛选 |
+| `http.js` | `jsonOk`/`jsonErr`/`corsHeaders`/`MAX_UPLOAD_*`/`MEDIA_CACHE_CONTROL` |
+| `time.js` | `nowTime()` → ISO+08:00；`formatTimeDisplay` |
+| `mime.js` | 上传 MIME 归一化与白名单 |
+| `mediaMeta.js` | kind/mime 展示与筛选 SQL 片段 |
+| `apiKeys.js` | `ih_` 密钥生成、SHA-256、请求头解析 |
+| `uploadR2.js` | 共享 R2 上传（网页 + `/api/v1/upload`） |
 
 ### 认证
-- `src/auth.js` —— next-auth v5 beta.31，CredentialsProvider，`safeEqual`（charCodeAt 版，**勿改 TextEncoder**——见陷阱）。`secret: process.env.SECRET`（无 fallback，必配）
-- `src/middleware.js` —— pages.dev→namooca 301 跳转 + admin/enableauthapi 路由守卫
 
-### 存储
-- R2（默认）：`enableauthapi/r2`（上传，uuid 文件名）→ `rfile/[name]`（读取）→ `admin/delete`（删 R2 + 清缓存）
-- cfile（TG 频道，保留）：`enableauthapi/tgchannel` 上传 → `cfile/[name]` 读取（detectMimeType 魔术字节判断 Content-Type）
-- file（telegraph 代理）：`file/[name]`
+- `src/auth.js`：`safeEqual` **必须用 charCodeAt**，勿改 TextEncoder（edge 下会破坏登录）
+- `src/middleware.js`：pages.dev → 自定义域 301；admin API 登录守卫；**r2/tgchannel 始终要登录**（与 `ENABLE_AUTH_API` 无关）；`isauth` 可匿名
 
-## 4. 部署与验证流程（务必遵守）
+### 存储路径
 
-1. **本地改完先 `npm run lint`**（必须 exit 0；`admin/page.js` 的 2 个 useCallback warning 是原有的，不算）
-2. **`git push origin main`** 触发 Cloudflare Pages 自动构建
-3. **监控部署用 check-runs**（不是 status，status 一直 pending）：
+| 路径 | 说明 |
+|------|------|
+| `/api/enableauthapi/r2` + `/api/rfile/*` | 会话上传 / 读取 / 可删 |
+| `/api/enableauthapi/tgchannel` + `/api/cfile/*` | 发 TG 频道；删除只清 D1，频道文件仍在 |
+| `/api/v1/upload` | **API Key** 上传，落 R2 |
+
+### 前端
+
+- 首页：`page.js`（edge RSC）→ `HomeClient` + Upload* 组件
+- 后台：`admin/page.js` 侧栏（资源 / 日志 / 概览 / **API**）+ 列表/网格
+
+---
+
+## 4. 部署与验证（务必遵守）
+
+1. `npm run lint`（exit 0）
+2. `git push origin main` → CF Pages 构建
+3. 监控用 **check-runs**（status 会一直 pending）：
    ```bash
    gh api repos/nardinmarcus/image-host/commits/main/check-runs \
      --jq '.check_runs[]|select(.name|test("Cloudflare";"i"))|.status+"/"+.conclusion'
-   # 等 "completed/success"
    ```
-4. **本地 `next build` 会卡死**（Node 22 + Next 14.x worker 不兼容，[GitHub #67474](https://github.com/vercel/next.js/discussions/67474)）——**不要尝试本地 build**，用 CF 预览/生产验证。Node 22 是机器全局，不要为这个降级
-5. 功能验证需登录态的（admin/上传），让用户浏览器操作；未授权 API 可 curl（应 401/403）
+4. **不要本地 `next build`**（Node 22 + Next 14 worker 卡死）
+5. 健康检查：`curl -s https://image.namooca.com/api/total`
 
-## 5. 剩余优化项（按优先级，含位置+方向+风险）
+---
 
-### 已完成且生产验证通过（2026-07-09，commit `42d5d8d`）
-- 拆前端：`UploadPanel` / `UploadQueue` / `ResultLinks` / `ProviderSelect`（`page.js` 瘦身为编排层）
-- 拖拽区 a11y：`tabIndex`/`role`/`aria-label`/Enter·Space 打开 file picker
-- 上传源 UI 收敛：仅 R2 + TG_Channel，未登录禁用 select 并提示；`isAuth` 按 `role` 判定（勿仅靠 isauth 的 HTTP 200）
-- admin useCallback 依赖数组补齐
-- **用户验证通过**：① 登录后 R2 上传 ② 预览/链接 Tab/复制 ③ 后台统计 Tab ④ 测试图清理
+## 5. 已完成能力清单（摘要）
 
-### 已完成 · Cache-Control（commit `e2f267d`，生产已验证）
-- `src/lib/http.js`：`MEDIA_CACHE_CONTROL` / `applyMediaCacheHeaders`
-- `rfile`/`cfile`/`file`：成功 200 响应带缓存策略；`file` 补 `caches.default`
-- 生产实测新图：`Cache-Control: public, max-age=…, s-maxage=86400`，二次请求 `cf-cache-status: HIT`
-- 注意：CF 控制台若配置了 Browser Cache TTL，可能把浏览器 `max-age` 改写成 14400；`s-maxage` 仍以代码为准
+详见 `CHANGELOG.md`。要点：
 
-### 已完成 · R2/TG 上传鉴权（commit `f64c3f8`，生产已验证）
-- `r2`/`tgchannel` 路由内 `auth()`：仅 `admin`/`user` 可上传
-- middleware：`/api/enableauthapi/r2|tgchannel` 始终 401（不依赖 `ENABLE_AUTH_API`）；`isauth` 仍可匿名探测
-- 生产：未登录 POST r2/tgchannel → 401；isauth 仍 200；admin 仍 401
+- [x] 安全加固 0–4 阶段 + 工程化（缓存、SSR 首页、组件拆分）
+- [x] 上传 20MB；PDF/音频/Office/EPUB；文档自动切 TG
+- [x] 后台 A+C：筛选、表/网格、侧栏固定、返回前台
+- [x] `imginfo.mime` / `kind` 权威类型
+- [x] 开放 API：`POST /api/v1/upload` + 后台 Key 管理 + 文档（上传 URL 必须带 `/api/v1/upload`）
 
-### 已完成 · 首页 SSR 边界（commit `0fbc88a`，生产已验证）
-- `src/app/page.js`：edge RSC，服务端取 `countImgInfo` + IP headers + `auth()` session
-- `src/components/HomeClient.jsx`：纯交互层，props 注入 total/ip/role；上传成功本地 +total
-- 首屏不再请求 `/api/total`、`/api/ip`、`/api/enableauthapi/isauth`
-- 生产 SSR HTML 已内嵌 total（如 129）与客户端 IP，未登录仍显示「需登录后上传」
+---
 
-### 上传体积
-- 统一上限 **20MB**（`src/lib/http.js` 的 `MAX_UPLOAD_BYTES` / `MAX_UPLOAD_MB`）
-- 原因：Telegram Bot `getFile` 约 20MB；再大 cfile 读回会挂
+## 6. 下一步（未做）
 
-### 已完成 · tgchannel audio/pdf + 20MB + PDF 选择（用户确认 OK）
-- 白名单：`image/*` / `video/*` / `audio/*` / `application/pdf`；getFile 含 audio/voice
-- 上传上限 20MB（对齐 TG getFile）
-- accept 始终含 `.pdf`；选 PDF/音频自动切 TG_Channel
-- 用户验证：功能正常
+| 优先级 | 项 |
+|--------|-----|
+| 中 | 后台 P2：URL 同步筛选、批量删/拉黑、统计点穿 |
+| 低 | 删死代码 `Table.jsx`；console 清理；`design-previews/` 是否入库 |
+| 低 | API：按 key 限流、上传日志、`storage=tg` |
+| 高风险独立周期 | **OpenNext 迁移**（next-on-pages 已归档） |
 
-### 已完成 · time ISO8601（本轮）
-- `nowTime()` → `2026-07-09T22:14:18+08:00`（Asia/Shanghai）
-- `formatTimeDisplay()`：admin 表格展示；兼容旧「2026年7月9日 …」
-- **不做全量 D1 迁移**（旧行保留中文，新行 ISO；展示层兼容）。若以后要按 time 排序/筛选再写迁移脚本
+---
 
-### 已完成 · 文档上传（EPUB / Word / Excel / PPT）
-- `src/lib/mime.js`：扩展名归一化 + 白名单
-- **R2 + TG 均支持** epub/doc/xls/ppt；**R2 只存桶，不发 TG**
-- 前端：选 PDF/音频/办公文档/EPUB 时**自动切 TG_Channel**，才会出现在 Telegram 频道
-- 上限 20MB
+## 7. 关键陷阱
 
-### 已完成 · 后台 A+C 混合（本轮）
-- IA：侧栏「资源 / 访问日志 / 概览」+ 顶栏搜索
-- 筛选：来源 R2/TG、类型 图/视/音/文档、拉黑状态（`searchImgInfo`/`searchLogs` filters）
-- 资源页：列表（A）↔ 网格（C）切换；文档徽章；TG 删除确认文案
-- 组件：`AdminTable`、`mediaMeta.js`；旧 `Table.jsx` 已无引用可后续删
+1. **safeEqual 勿用 TextEncoder**
+2. **本地 next build 卡死** → 只靠 CF 构建
+3. **部署看 check-runs** 不是 status
+4. **cfile 删除 ≠ TG 删文件**
+5. **edge 缓存 per-colo**：`caches.default.delete` 只清当前节点
+6. **jsonOk 展开字段**：需要 `res.data` 时用 `jsonOk({ data: {...} })`
+7. **勿 `npm audit fix --force` 升 next-on-pages**
+8. **API Base URL ≠ 上传 URL**：上传 = `https://image.namooca.com/api/v1/upload`
 
-### 已完成 · 文件类型权威源（mime/kind 列）
-- 上传时写入 `imginfo.mime` + `imginfo.kind`（来自 File.type / Content-Type）
-- 筛选优先 `kind`/`mime`，仅旧数据无元数据时回退 URL 扩展名
-- 启动时 `ensureImginfoMetaColumns`：ALTER 加列 + 回填空 kind（最多 500/次）
+---
 
-### 已完成 · 开放 API（Base URL + API Key）
-- `POST /api/v1/upload`：`Authorization: Bearer ih_…` 或 `X-API-Key`
-- 密钥存 D1 `api_keys`（仅 SHA-256，明文创建时显示一次）
-- 后台侧栏 **API**：创建/禁用/删除 + 内嵌文档（curl / n8n）
-- 上传写入 R2 + imginfo，后台「资源」可见
-- 共享逻辑：`src/lib/uploadR2.js`、`src/lib/apiKeys.js`
+## 8. 环境变量与 Bindings
 
-### 下一步（按优先级）
-1. 后台 P2：URL 同步筛选、详情抽屉增强、批量操作、统计点穿
-2. API：按 key 限流、上传日志、可选 TG storage 参数
-3. **清理残留 console / 死代码**（含旧 Table.jsx）
+| 变量 / Binding | 用途 | 必配 |
+|----------------|------|------|
+| `SECRET` | next-auth JWT | **是** |
+| `BASIC_USER` / `BASIC_PASS` | 管理员 | 是 |
+| `REGULAR_USER` / `REGULAR_PASS` | 访客账号 | 否 |
+| `IMG` | D1 | 是 |
+| `IMGRS` | R2 | 是（默认上传） |
+| `TG_BOT_TOKEN` / `TG_CHAT_ID` | TG 频道 | 文档发频道时需要 |
+| `ENABLE_AUTH_API` | 访客验证开关 | 否 |
 
-### 风险高（单独做）
-3. **迁移 OpenNext**（`@cloudflare/next-on-pages` 已于 2025-09-29 归档）：要改 15+ route + 去掉 `runtime = 'edge'` + middleware 兼容 + 构建重做。**单独完整周期**
+兼容性标志：生产填 `nodejs_compat`（见 README）。
 
-## 6. 关键陷阱（踩过坑，务必避免）
+---
 
-1. **safeEqual 勿用 TextEncoder/Uint8Array** —— 在 next-on-pages edge 的 next-auth authorize 里会破坏登录（已验证：TextEncoder 版导致所有凭据 CredentialsSignin，=== 和 charCodeAt 版正常）。用 `charCodeAt` 逐字符异或
-2. **本地 `next build` 卡死** —— Node 22 环境，别浪费时间排查，直接 push 让 CF 构建
-3. **CF 部署监控用 check-runs** —— status API 对这个项目一直 pending，会误判 timeout
-4. **cfile（TG 频道）源删不掉** —— admin/delete 只删 D1 记录，TG file_id 永久可访问（除非删 Bot）。这是 TG 固有，不是 bug。要"删除即 404"必须用 R2（默认已是 R2）
-5. **删除后 edge 缓存 per-colo 延迟** —— `caches.default.delete` 只清当前 CF 节点，其他节点等 TTL。用户接受了几分钟延迟
-6. **响应 envelope** —— `jsonOk({data: {...}})` 把字段展开到顶层；前端读 `res.data` 时，route 必须用 `jsonOk({data: {...}})` 嵌套（stats 路由踩过：`jsonOk({ips,referers,imgs})` 导致前端 `data.data` undefined 一直加载中）
-7. **`@cloudflare/next-on-pages` 与 next 版本绑定** —— audit fix 想升级 next-on-pages 到 1.13.16 会要求 next ≥15，与 next 14.2.35 冲突（eresolve）。别 `npm audit fix --force`
+## 9. 接手第一步
 
-## 7. 环境变量（CF Pages → Settings → Environment variables）
+1. 读本文件 + `tasks/todo.md` + `CHANGELOG.md` + `src/lib/`
+2. `git log --oneline -25`
+3. check-runs 确认 main 部署 success
+4. `curl -s https://image.namooca.com/api/total`
+5. 从第 6 节挑一项；改完 lint → push → check-runs → 用户验证
 
-| 变量 | 用途 | 必配 |
-|------|------|------|
-| `SECRET` | next-auth JWT 密钥 | **是**（无 fallback，不配则整站 fail-fast） |
-| `BASIC_USER` / `BASIC_PASS` | admin 账号 | 是 |
-| `REGULAR_USER` / `REGULAR_PASS` | 普通用户（仅 ENABLE_AUTH_API=true 时用） | 否 |
-| `IMG` | D1 binding | 是 |
-| `IMGRS` | R2 bucket binding（默认上传用 R2） | 是 |
-| `TG_BOT_TOKEN` / `TG_CHAT_ID` | TG 频道（cfile，可选 fallback） | 否 |
-| `VVIP_SIGN` / `VVIP_TOKEN` | vviptuangou（可选，已从硬编码移出） | 否 |
+## 10. 参考
 
-CF Bindings：`IMG`（D1）、`IMGRS`（R2）在 Pages → Settings → Functions → Bindings 配。
-
-## 8. 接手第一步
-
-1. 读本文档 + `tasks/todo.md`（整改计划+进度勾选）+ `src/lib/`（公共层）
-2. `git log --oneline -20` 看 16 个整改 commit 的脉络
-3. 确认 main 健康：`gh api .../check-runs`（上面命令）应 completed/success
-4. `curl -s https://image.namooca.com/api/total -w "\n%{http_code}"` 应 200（快速健康检查）
-5. 挑第 5 节剩余项（OpenNext / ISO time / Cache-Control 等）；改完 lint → push → check-runs 监控 → 让用户验证
-
-## 9. 参考资源
-
-- 整改评估原始报告：本次会话上方（5 路并行子代理 + 交叉验证）
-- next-on-pages 归档声明：https://github.com/cloudflare/next-on-pages （2025-09-29 read-only）
-- OpenNext 迁移：https://opennext.js.org/cloudflare
-- CF 部署状态：check-runs（见第 4 节）或 https://dash.cloudflare.com → Pages → img-bnp
+- OpenNext Cloudflare：https://opennext.js.org/cloudflare  
+- next-on-pages（归档）：https://github.com/cloudflare/next-on-pages  
+- CF Pages 项目：控制台 → Pages → img-bnp（或当前绑定名）  
