@@ -88,11 +88,12 @@ export async function GET(request) {
 - 首屏不再请求 `/api/total`、`/api/ip`、`/api/enableauthapi/isauth`
 - 生产 SSR HTML 已内嵌 total（如 129）与客户端 IP，未登录仍显示「需登录后上传」
 
-### 已完成 · tgchannel audio/pdf（本轮）
+### 已完成 · tgchannel audio/pdf（commit `30916f4`，已部署）
 - 白名单恢复：`image/*` / `video/*` / `audio/*` / `application/pdf`
 - `getFile` 补 audio/voice；失败返回 502
-- cfile 补 audio/pdf 扩展名与魔术字节
+- cfile 补 audio/pdf 扩展名与魔术字节（RIFF 先判 WAV 再 WEBP）
 - 前端：选 TG_Channel 时 accept 含 audio/pdf；队列/预览支持音频与 PDF
+- 未登录 POST tgchannel 仍 401；R2 仍仅 image/video
 
 ### 下一步（按优先级）
 1. **time 字段改 ISO8601**（`nowTime()` 仍本地化字符串；需迁移，D1 不可逆，谨慎）
