@@ -176,13 +176,14 @@ export default function Admin() {
   );
 
   return (
-    <div className="min-h-screen bg-stone-100 text-stone-900 flex">
-      {/* 侧栏 A */}
-      <aside className="hidden md:flex w-52 flex-col border-r border-stone-200 bg-white shrink-0">
-        <div className="h-14 flex items-center px-4 border-b border-stone-100">
+    // h-screen + overflow-hidden：整页不滚；仅右侧 main 滚动，侧栏保持固定
+    <div className="h-[100dvh] bg-stone-100 text-stone-900 flex overflow-hidden">
+      {/* 侧栏 A：固定视口高度，不随内容滚动 */}
+      <aside className="hidden md:flex w-52 h-full flex-col border-r border-stone-200 bg-white shrink-0">
+        <div className="h-14 flex items-center px-4 border-b border-stone-100 shrink-0">
           <span className="font-semibold tracking-tight text-sm">图床 · 运维台</span>
         </div>
-        <nav className="p-3 space-y-1 flex-1">
+        <nav className="p-3 space-y-1 flex-1 overflow-y-auto min-h-0">
           {NAV.map((item) => (
             <button
               key={item.id}
@@ -202,7 +203,7 @@ export default function Admin() {
             </button>
           ))}
         </nav>
-        <div className="p-3 border-t border-stone-100 space-y-2">
+        <div className="p-3 border-t border-stone-100 space-y-2 shrink-0">
           <Link
             href="/"
             className="block text-center text-sm py-2 rounded-lg border border-stone-300 bg-stone-50 hover:bg-white font-medium text-stone-800"
@@ -219,9 +220,9 @@ export default function Admin() {
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* 顶栏 */}
-        <header className="h-14 border-b border-stone-200 bg-white flex items-center justify-between px-4 gap-3 sticky top-0 z-30">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
+        {/* 顶栏：贴在内容区顶部，不滚走 */}
+        <header className="h-14 border-b border-stone-200 bg-white flex items-center justify-between px-4 gap-3 shrink-0 z-30">
           <div className="flex items-center gap-2 md:hidden overflow-x-auto">
             {NAV.map((item) => (
               <Chip key={item.id} active={view === item.id} onClick={() => setView(item.id)}>
@@ -262,7 +263,8 @@ export default function Admin() {
           </div>
         </header>
 
-        <main className="flex-1 p-4 pb-24 max-w-7xl w-full mx-auto">
+        <main className="flex-1 min-h-0 overflow-y-auto p-4 pb-24 w-full">
+          <div className="max-w-7xl mx-auto">
           {view === 'stats' ? (
             <div className="space-y-4">
               <p className="text-sm text-stone-500">访问 Top 20（可后续点穿筛选）</p>
@@ -334,6 +336,7 @@ export default function Admin() {
               />
             </>
           )}
+          </div>
         </main>
 
         {view !== 'stats' && (
