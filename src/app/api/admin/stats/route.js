@@ -18,7 +18,7 @@ export async function GET(request) {
       getTopStats(env, 'referer'),
       getTopStats(env, 'url'),
     ]);
-    return jsonOk({ ips, referers, imgs });
+    return jsonOk({ data: { ips, referers, imgs } });
   } catch (error) {
     console.error('admin/stats error:', error);
     return jsonErr('internal error');
