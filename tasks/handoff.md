@@ -103,10 +103,11 @@ export async function GET(request) {
 - `formatTimeDisplay()`：admin 表格展示；兼容旧「2026年7月9日 …」
 - **不做全量 D1 迁移**（旧行保留中文，新行 ISO；展示层兼容）。若以后要按 time 排序/筛选再写迁移脚本
 
-### 已完成 · EPUB 上传（本轮）
-- MIME：`application/epub+zip` + `.epub` 扩展名兜底（`src/lib/mime.js`）
-- **R2** 与 **TG_Channel** 均支持；音频/PDF 仍仅 TG
-- 前端 accept / 队列预览 / 结果链已加 EPUB
+### 已完成 · 文档上传（EPUB / Word / Excel / PPT）
+- `src/lib/mime.js`：扩展名归一化 + 白名单
+- **R2 + TG**：epub / doc(x) / xls(x) / ppt(x)
+- **仅 TG**：audio / pdf（历史策略）
+- 上限仍 20MB；推荐办公文档走 **R2**（可删）
 
 ### 下一步（按优先级）
 1. **（可选）历史 time 迁移脚本**：中文日期 → ISO（D1 不可逆，需备份后批处理）

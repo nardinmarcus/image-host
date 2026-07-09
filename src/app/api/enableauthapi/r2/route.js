@@ -3,7 +3,7 @@ import { getRequestContext } from '@cloudflare/next-on-pages';
 import { auth } from '@/auth';
 import { insertImgInfo } from '@/lib/db';
 import { corsHeaders, jsonErr, getClientIp, getReferer, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from '@/lib/http';
-import { normalizeUploadMime, isAllowedR2Mime } from '@/lib/mime';
+import { normalizeUploadMime, isAllowedR2Mime, extFromMimeOrName } from '@/lib/mime';
 import { nowTime } from '@/lib/time';
 
 export async function POST(request) {
@@ -31,12 +31,10 @@ export async function POST(request) {
 	if (file.size > MAX_UPLOAD_BYTES) return jsonErr(`file too large (max ${MAX_UPLOAD_MB}MB)`, 413);
 	const fileType = normalizeUploadMime(file);
 	if (!isAllowedR2Mime(fileType)) {
-		return jsonErr('invalid file type (image/video/epub)', 400);
+		return jsonErr('invalid file type (image/video/epub/doc/xls/ppt)', 400);
 	}
 	const filename = file.name || 'file';
-	const ext = filename.includes('.')
-		? filename.split('.').pop()
-		: (fileType === 'application/epub+zip' ? 'epub' : 'bin');
+	const ext = extFromMimeOrName(fileType, filename);
 	const key = `${crypto.randomUUID()}.${ext}`;
 
 	const header = new Headers()

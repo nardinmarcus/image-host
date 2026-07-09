@@ -34,14 +34,21 @@ export default function UploadPanel({
     fileInputRef?.current?.click();
   };
 
-  // 选择器始终放宽（含 .pdf/.epub），避免系统对话框把文档灰掉；
-  // 实际上传由当前接口 + 服务端 MIME 校验。
-  const accept =
-    'image/*,video/*,audio/*,.pdf,application/pdf,.epub,application/epub+zip';
+  // 选择器始终放宽文档扩展名，避免系统对话框灰掉；实际上传由服务端校验。
+  const accept = [
+    'image/*',
+    'video/*',
+    'audio/*',
+    '.pdf,application/pdf',
+    '.epub,application/epub+zip',
+    '.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    '.ppt,.pptx,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  ].join(',');
   const typeHint =
     selectedOption === 'tgchannel'
-      ? '图片/视频/音频/PDF/EPUB'
-      : '图片/视频/EPUB（音频/PDF 请用 TG_Channel）';
+      ? '图片/视频/音频/PDF/EPUB/Word/Excel/PPT'
+      : '图片/视频/EPUB/Word/Excel/PPT（音频/PDF 请用 TG_Channel）';
 
   return (
     <>

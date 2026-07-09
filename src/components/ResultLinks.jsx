@@ -89,36 +89,29 @@ export default function ResultLinks({
         </div>
       );
     }
-    if (data.type === 'application/pdf' || /\.pdf$/i.test(data.name || '')) {
-      return (
-        <a
-          key={`pdf-${index}`}
-          href={data.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="w-36 h-40 m-2 flex items-center justify-center bg-slate-100 rounded text-sm text-blue-600 underline"
-        >
-          PDF 打开
-        </a>
-      );
-    }
-    if (
-      data.type === 'application/epub+zip' ||
-      data.type === 'application/epub' ||
-      /\.epub$/i.test(data.name || '')
-    ) {
-      return (
-        <a
-          key={`epub-${index}`}
-          href={data.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          download
-          className="w-36 h-40 m-2 flex items-center justify-center bg-amber-50 rounded text-sm text-blue-600 underline"
-        >
-          EPUB 下载
-        </a>
-      );
+    {
+      const name = data.name || '';
+      const t = data.type || '';
+      let label = null;
+      if (t === 'application/pdf' || /\.pdf$/i.test(name)) label = 'PDF 打开';
+      else if (t === 'application/epub+zip' || t === 'application/epub' || /\.epub$/i.test(name)) label = 'EPUB 下载';
+      else if (/\.docx?$/i.test(name) || t.includes('word') || t === 'application/msword') label = 'Word 下载';
+      else if (/\.xlsx?$/i.test(name) || t.includes('sheet') || t.includes('excel')) label = 'Excel 下载';
+      else if (/\.pptx?$/i.test(name) || t.includes('presentation') || t.includes('powerpoint')) label = 'PPT 下载';
+      if (label) {
+        return (
+          <a
+            key={`doc-${index}`}
+            href={data.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            download
+            className="w-36 h-40 m-2 flex items-center justify-center bg-amber-50 rounded text-sm text-blue-600 underline text-center px-1"
+          >
+            {label}
+          </a>
+        );
+      }
     }
     return (
       <img

@@ -3,7 +3,7 @@ import { getRequestContext } from '@cloudflare/next-on-pages';
 import { auth } from '@/auth';
 import { insertImgInfo } from '@/lib/db';
 import { corsHeaders, jsonErr, getClientIp, getReferer, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from '@/lib/http';
-import { normalizeUploadMime, isAllowedTgMime } from '@/lib/mime';
+import { normalizeUploadMime, isAllowedTgMime, isTgDocumentMime } from '@/lib/mime';
 import { nowTime } from '@/lib/time';
 
 export async function POST(request) {
@@ -30,25 +30,28 @@ export async function POST(request) {
 
 	const fileType = normalizeUploadMime(file);
 	if (!isAllowedTgMime(fileType)) {
-		return jsonErr('invalid file type (image/video/audio/pdf/epub)', 400);
+		return jsonErr('invalid file type (image/video/audio/pdf/epub/doc/xls/ppt)', 400);
 	}
 
 	const req_url = new URL(request.url);
 
-	const fileTypeMap = {
-		'image/': { url: 'sendPhoto', type: 'photo' },
-		'video/': { url: 'sendVideo', type: 'video' },
-		'audio/': { url: 'sendAudio', type: 'audio' },
-		'application/pdf': { url: 'sendDocument', type: 'document' },
-		'application/epub+zip': { url: 'sendDocument', type: 'document' },
-	};
-
-	const matchedKey = Object.keys(fileTypeMap).find((key) =>
-		fileType.startsWith(key) || fileType === key
-	);
-	// 不落 defaultType：避免未知 MIME 误走 sendDocument
-	if (!matchedKey) return jsonErr('invalid file type (image/video/audio/pdf/epub)', 400);
-	const { url: endpoint, type: fileTypevalue } = fileTypeMap[matchedKey];
+	let endpoint;
+	let fileTypevalue;
+	if (fileType.startsWith('image/')) {
+		endpoint = 'sendPhoto';
+		fileTypevalue = 'photo';
+	} else if (fileType.startsWith('video/')) {
+		endpoint = 'sendVideo';
+		fileTypevalue = 'video';
+	} else if (fileType.startsWith('audio/')) {
+		endpoint = 'sendAudio';
+		fileTypevalue = 'audio';
+	} else if (isTgDocumentMime(fileType)) {
+		endpoint = 'sendDocument';
+		fileTypevalue = 'document';
+	} else {
+		return jsonErr('invalid file type (image/video/audio/pdf/epub/doc/xls/ppt)', 400);
+	}
 
 
 	const up_url = `https://api.telegram.org/bot${env.TG_BOT_TOKEN}/${endpoint}`;

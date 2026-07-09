@@ -74,33 +74,35 @@ export default function UploadQueue({
                   <audio src={filePreviews[index]} controls className="w-full" />
                 </div>
               )}
-              {(file.type === 'application/pdf' ||
-                file.type === 'application/x-pdf' ||
-                /\.pdf$/i.test(file.name || '')) && (
-                <div className="flex items-center justify-center w-full h-full bg-gray-200 text-gray-700 p-2">
-                  <p className="text-sm text-center break-all">PDF<br />{file.name}</p>
-                </div>
-              )}
-              {(file.type === 'application/epub+zip' ||
-                file.type === 'application/epub' ||
-                /\.epub$/i.test(file.name || '')) && (
-                <div className="flex items-center justify-center w-full h-full bg-amber-50 text-gray-700 p-2">
-                  <p className="text-sm text-center break-all">EPUB<br />{file.name}</p>
-                </div>
-              )}
-              {!file.type.startsWith('image/') &&
-                !file.type.startsWith('video/') &&
-                !file.type.startsWith('audio/') &&
-                file.type !== 'application/pdf' &&
-                file.type !== 'application/x-pdf' &&
-                !/\.pdf$/i.test(file.name || '') &&
-                file.type !== 'application/epub+zip' &&
-                file.type !== 'application/epub' &&
-                !/\.epub$/i.test(file.name || '') && (
-                <div className="flex items-center justify-center w-full h-full bg-gray-200 text-gray-700">
-                  <p>{file.name}</p>
-                </div>
-              )}
+              {(() => {
+                const name = file.name || '';
+                const t = file.type || '';
+                let label = null;
+                if (t === 'application/pdf' || t === 'application/x-pdf' || /\.pdf$/i.test(name)) label = 'PDF';
+                else if (t === 'application/epub+zip' || t === 'application/epub' || /\.epub$/i.test(name)) label = 'EPUB';
+                else if (/\.docx?$/i.test(name) || t.includes('word') || t === 'application/msword') label = 'Word';
+                else if (/\.xlsx?$/i.test(name) || t.includes('sheet') || t.includes('excel')) label = 'Excel';
+                else if (/\.pptx?$/i.test(name) || t.includes('presentation') || t.includes('powerpoint')) label = 'PPT';
+                if (label) {
+                  return (
+                    <div className="flex items-center justify-center w-full h-full bg-amber-50 text-gray-700 p-2">
+                      <p className="text-sm text-center break-all">{label}<br />{name}</p>
+                    </div>
+                  );
+                }
+                if (
+                  !t.startsWith('image/') &&
+                  !t.startsWith('video/') &&
+                  !t.startsWith('audio/')
+                ) {
+                  return (
+                    <div className="flex items-center justify-center w-full h-full bg-gray-200 text-gray-700">
+                      <p>{name}</p>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
             </div>
             <div className="flex flex-row items-center justify-center w-full mt-3">
               <button
