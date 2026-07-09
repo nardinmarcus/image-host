@@ -61,8 +61,9 @@
 - 验证：build 不卡 / 上传读取删除后台全功能正常 / pages.dev 跳转仍生效
 
 ### 阶段 6 · 性能与工程化（1-2 天）
-- [~] `file`/`cfile`/`rfile` 加 `Cache-Control` + `caches.default`（rfile/cfile 已有 caches.default；file 与统一 Cache-Control 待补）
+- [ ] `file`/`cfile`/`rfile` 统一 `Cache-Control` + 完善 `caches.default`（rfile/cfile 已有 cache API；缺响应头；file 待补）← **下一步**
 - [ ] 首页拆 client/server 边界（统计、登录态服务端取数）
+- [ ] R2 上传 API 强制鉴权（ENABLE_AUTH_API=false 时未登录仍可 POST `/api/enableauthapi/r2`）
 - [x] 补 Top20 统计 API + 后台 Tab
 - [x] 加 `.github/workflows`（lint + build）
 - [x] 清理死代码（ImageModal、admin/ip、console 部分清理）
@@ -70,6 +71,7 @@
 - [x] 拖拽区 a11y（tabIndex/role/键盘回退）
 - [x] 上传源 UI 收敛：默认仅 R2 + TG_Channel，未登录提示需登录
 - [x] admin useCallback 依赖数组补齐
+- [x] 生产验证通过（登录上传 / 预览链接 / 统计 Tab / 清理测试图）— 2026-07-09
 - 验证：分发接口命中缓存 / 首屏不再串行 3 个 API / 后台统计 Tab 可用
 
 ## 风险与对策

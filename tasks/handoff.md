@@ -64,20 +64,22 @@ export async function GET(request) {
 
 ## 5. 剩余优化项（按优先级，含位置+方向+风险）
 
-### 已完成（2026-07-09 本轮）
+### 已完成且生产验证通过（2026-07-09，commit `42d5d8d`）
 - 拆前端：`UploadPanel` / `UploadQueue` / `ResultLinks` / `ProviderSelect`（`page.js` 瘦身为编排层）
 - 拖拽区 a11y：`tabIndex`/`role`/`aria-label`/Enter·Space 打开 file picker
-- 上传源 UI 收敛：仅 R2 + TG_Channel，未登录禁用 select 并提示
+- 上传源 UI 收敛：仅 R2 + TG_Channel，未登录禁用 select 并提示；`isAuth` 按 `role` 判定（勿仅靠 isauth 的 HTTP 200）
 - admin useCallback 依赖数组补齐
+- **用户验证通过**：① 登录后 R2 上传 ② 预览/链接 Tab/复制 ③ 后台统计 Tab ④ 测试图清理
 
-### 优先级低
-1. **tgchannel audio/pdf 收窄**（`enableauthapi/tgchannel/route.js` MIME 只放行 image/video，fileTypeMap 仍写 audio/pdf）：需用户确认是否放宽
-2. **time 字段存储格式**（`lib/time.js` 的 `nowTime()` 仍本地化字符串，schema 声明 DATE）：改 ISO8601 + 历史迁移（D1 不可逆，谨慎）
-3. **统一 Cache-Control**（rfile/cfile 已有 `caches.default`；file 与响应头可再对齐）
-4. **首页 client/server 边界**（统计/登录态服务端取数，减少首屏串行）
+### 下一步（按优先级）
+1. **统一 Cache-Control**（`rfile`/`cfile` 已有 `caches.default` 但缺明确 `Cache-Control`；`file` 无缓存）→ 当前进行中
+2. **首页 client/server 边界**（统计/登录态服务端取数，减少首屏串行 3 个 API）
+3. **R2 上传 API 鉴权加固**（`ENABLE_AUTH_API=false` 时 middleware 不拦 `/api/enableauthapi/*`，未登录 POST R2 仍可成功；UI 已挡，API 未挡）
+4. **tgchannel audio/pdf 收窄**（MIME 只放行 image/video，fileTypeMap 仍写 audio/pdf）：需用户确认是否放宽
+5. **time 字段改 ISO8601**（`nowTime()` 仍本地化字符串；需迁移，D1 不可逆，谨慎）
 
 ### 风险高（单独做）
-5. **迁移 OpenNext**（`@cloudflare/next-on-pages` 已于 2025-09-29 归档）：要改 15+ route（`getRequestContext`→`getCloudflareContext` 且变 async）+ 移除所有 `export const runtime = 'edge'` + middleware 兼容性不确定 + 构建配置重做。**建议：单独一个完整周期做**
+6. **迁移 OpenNext**（`@cloudflare/next-on-pages` 已于 2025-09-29 归档）：要改 15+ route + 去掉 `runtime = 'edge'` + middleware 兼容 + 构建重做。**单独完整周期**
 
 ## 6. 关键陷阱（踩过坑，务必避免）
 
