@@ -205,9 +205,9 @@ export default function Admin() {
         <div className="p-3 border-t border-stone-100 space-y-2">
           <Link
             href="/"
-            className="block text-center text-sm py-2 rounded-lg border border-stone-200 hover:bg-stone-50"
+            className="block text-center text-sm py-2 rounded-lg border border-stone-300 bg-stone-50 hover:bg-white font-medium text-stone-800"
           >
-            返回主页
+            ← 返回前台
           </Link>
           <button
             type="button"
@@ -242,7 +242,7 @@ export default function Admin() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="搜索路径…"
-                  className="border border-stone-200 rounded-lg px-3 py-1.5 text-sm w-36 sm:w-52 bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-300"
+                  className="border border-stone-200 rounded-lg px-3 py-1.5 text-sm w-28 sm:w-44 bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-300"
                 />
                 <button
                   type="submit"
@@ -252,8 +252,12 @@ export default function Admin() {
                 </button>
               </form>
             )}
-            <Link href="/" className="md:hidden text-sm text-stone-600 px-2">
-              主页
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border border-stone-300 bg-white text-stone-800 hover:bg-stone-50 hover:border-stone-400 whitespace-nowrap font-medium"
+            >
+              <span aria-hidden>←</span>
+              返回前台
             </Link>
           </div>
         </header>
