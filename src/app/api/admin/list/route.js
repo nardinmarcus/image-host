@@ -13,8 +13,8 @@ export async function POST(request) {
   const { env } = getRequestContext();
   try {
     const body = await request.json();
-    const { page, query, storage, kind, blocked } = body || {};
-    const filters = { storage, kind, blocked };
+    const { page, query, storage, kind, blocked, sort } = body || {};
+    const filters = { storage, kind, blocked, sort };
     const { results, total } = await searchImgInfo(env, query, page, filters);
     return jsonOk({ data: results, page, total });
   } catch (error) {

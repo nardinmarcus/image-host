@@ -1,38 +1,18 @@
 'use client';
 
 import { signOut } from 'next-auth/react';
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { ToastContainer, toast } from 'react-toastify';
 import AdminTable from '@/components/AdminTable';
 import AdminApiKeys from '@/components/AdminApiKeys';
-import { useState, useEffect, useCallback } from 'react';
-import { ToastContainer, toast } from 'react-toastify';
-import Link from 'next/link';
-
-function StatsList({ title, items }) {
-  return (
-    <div className="bg-white border border-stone-200 rounded-xl p-4">
-      <h3 className="text-sm font-semibold mb-3 text-stone-800">{title}</h3>
-      <div className="max-h-64 overflow-auto divide-y divide-stone-100">
-        {items?.length ? (
-          items.map((item, i) => (
-            <div key={i} className="flex justify-between gap-3 py-1.5 text-sm">
-              <span className="truncate text-stone-600">{item.name || '(空)'}</span>
-              <span className="text-teal-700 font-variant-numeric tabular-nums whitespace-nowrap">
-                {item.count}
-              </span>
-            </div>
-          ))
-        ) : (
-          <div className="py-6 text-center text-stone-400 text-sm">暂无数据</div>
-        )}
-      </div>
-    </div>
-  );
-}
+import AdminInsights from '@/components/admin/AdminInsights';
+import AdminResourceDrawer from '@/components/admin/AdminResourceDrawer';
 
 const NAV = [
+  { id: 'stats', label: '概览' },
   { id: 'list', label: '资源' },
   { id: 'log', label: '访问日志' },
-  { id: 'stats', label: '概览' },
   { id: 'apikeys', label: 'API' },
 ];
 
@@ -57,331 +37,319 @@ const BLOCK_CHIPS = [
   { id: 'yes', label: '拉黑' },
 ];
 
-/**
- * A 运维台 + C 媒体库：侧栏 IA、筛选、表/网格切换。
- */
-export default function Admin() {
-  const [listData, setListData] = useState([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [searchTotal, setSearchTotal] = useState(0);
-  const [inputPage, setInputPage] = useState(1);
-  const [view, setView] = useState('list');
-  const [layout, setLayout] = useState('table'); // table | grid
-  const [searchQuery, setSearchQuery] = useState('');
-  const [storage, setStorage] = useState('');
-  const [kind, setKind] = useState('');
-  const [blocked, setBlocked] = useState('');
-  const [statsData, setStatsData] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [resultTotal, setResultTotal] = useState(0);
+const METADATA_CHIPS = [
+  { id: '', label: '全部数据状态' },
+  { id: 'missing_size', label: '待补全大小' },
+  { id: 'unclassified', label: '类型待归类' },
+  { id: 'failed', label: '采集失败' },
+];
 
-  const getListdata = useCallback(
-    async (page) => {
-      if (view === 'stats' || view === 'apikeys') return;
-      setLoading(true);
-      try {
-        const res = await fetch(`/api/admin/${view}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            page: page - 1,
-            query: searchQuery,
-            storage: storage || undefined,
-            kind: kind || undefined,
-            blocked: blocked || undefined,
-          }),
-        });
-        const res_data = await res.json();
-        if (!res_data?.success) {
-          toast.error(res_data.message);
-        } else {
-          setListData(res_data.data || []);
-          setResultTotal(res_data.total || 0);
-          setSearchTotal(Math.max(1, Math.ceil((res_data.total || 0) / 12)));
-        }
-      } catch (error) {
-        toast.error(error.message);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [view, searchQuery, storage, kind, blocked]
-  );
+const SORT_OPTIONS = [
+  { id: 'newest', label: '最近上传' },
+  { id: 'views', label: '最多访问' },
+  { id: 'accessed', label: '最近访问' },
+  { id: 'size', label: '最大文件' },
+  { id: 'inactive', label: '最久未访问' },
+];
 
-  useEffect(() => {
-    if (view !== 'stats' && view !== 'apikeys') getListdata(currentPage);
-  }, [currentPage, view, getListdata]);
-
-  // 筛选变化时回第一页
-  useEffect(() => {
-    setCurrentPage(1);
-    setInputPage(1);
-  }, [storage, kind, blocked, view]);
-
-  const fetchStats = useCallback(async () => {
-    try {
-      const res = await fetch('/api/admin/stats');
-      const data = await res.json();
-      if (data?.success) setStatsData(data.data);
-      else toast.error(data.message || '获取统计失败');
-    } catch {
-      toast.error('获取统计失败');
-    }
-  }, []);
-
-  useEffect(() => {
-    if (view === 'stats') fetchStats();
-  }, [view, fetchStats]);
-
-  const handleNextPage = () => {
-    if (currentPage >= searchTotal) {
-      toast.error('已是最后一页');
-      return;
-    }
-    const next = currentPage + 1;
-    setCurrentPage(next);
-    setInputPage(next);
+function readInitialState() {
+  const defaults = {
+    view: 'stats',
+    layout: 'table',
+    query: '',
+    storage: '',
+    kind: '',
+    blocked: '',
+    metadata: '',
+    sort: 'newest',
+    page: 1,
+    range: '30d',
+    resource: '',
   };
-
-  const handlePrevPage = () => {
-    if (currentPage <= 1) return;
-    const prev = currentPage - 1;
-    setCurrentPage(prev);
-    setInputPage(prev);
+  if (typeof window === 'undefined') return defaults;
+  const params = new URLSearchParams(window.location.search);
+  const allowedView = NAV.some((item) => item.id === params.get('view')) ? params.get('view') : defaults.view;
+  const allowedLayout = ['table', 'grid'].includes(params.get('layout')) ? params.get('layout') : defaults.layout;
+  const allowedRange = ['7d', '30d'].includes(params.get('range')) ? params.get('range') : defaults.range;
+  const allowedSort = SORT_OPTIONS.some((item) => item.id === params.get('sort')) ? params.get('sort') : defaults.sort;
+  const page = Math.max(1, Number.parseInt(params.get('page') || '1', 10) || 1);
+  return {
+    ...defaults,
+    view: allowedView,
+    layout: allowedLayout,
+    query: params.get('q') || '',
+    storage: STORAGE_CHIPS.some((item) => item.id === params.get('storage')) ? params.get('storage') || '' : '',
+    kind: KIND_CHIPS.some((item) => item.id === params.get('kind')) ? params.get('kind') || '' : '',
+    blocked: BLOCK_CHIPS.some((item) => item.id === params.get('blocked')) ? params.get('blocked') || '' : '',
+    metadata: METADATA_CHIPS.some((item) => item.id === params.get('metadata')) ? params.get('metadata') || '' : '',
+    sort: allowedSort,
+    page,
+    range: allowedRange,
+    resource: params.get('resource') || '',
   };
+}
 
-  const handleJumpPage = () => {
-    const page = parseInt(inputPage, 10);
-    if (!isNaN(page) && page >= 1 && page <= searchTotal) setCurrentPage(page);
-    else toast.error('请输入有效页码');
-  };
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    setCurrentPage(1);
-    setInputPage(1);
-    getListdata(1);
-  };
-
-  const Chip = ({ active, onClick, children }) => (
+function Chip({ active, onClick, children }) {
+  return (
     <button
       type="button"
+      aria-pressed={active}
       onClick={onClick}
-      className={`px-2.5 py-1 rounded-full text-xs font-medium transition ${
-        active
-          ? 'bg-stone-900 text-white'
-          : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
-      }`}
+      className={`min-h-8 rounded-full px-2.5 py-1 text-xs font-medium transition focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-1 ${active ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`}
     >
       {children}
     </button>
   );
+}
+
+export default function Admin() {
+  const [initial] = useState(readInitialState);
+  const [listData, setListData] = useState([]);
+  const [resultTotal, setResultTotal] = useState(0);
+  const [currentPage, setCurrentPage] = useState(initial.page);
+  const [inputPage, setInputPage] = useState(String(initial.page));
+  const [view, setView] = useState(initial.view);
+  const [layout, setLayout] = useState(initial.layout);
+  const [searchInput, setSearchInput] = useState(initial.query);
+  const [query, setQuery] = useState(initial.query);
+  const [storage, setStorage] = useState(initial.storage);
+  const [kind, setKind] = useState(initial.kind);
+  const [blocked, setBlocked] = useState(initial.blocked);
+  const [metadata, setMetadata] = useState(initial.metadata);
+  const [sort, setSort] = useState(initial.sort);
+  const [range, setRange] = useState(initial.range);
+  const [statsData, setStatsData] = useState(null);
+  const [statsError, setStatsError] = useState('');
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [listLoading, setListLoading] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
+  const [selectedResource, setSelectedResource] = useState(initial.resource);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const totalPages = Math.max(1, Math.ceil(resultTotal / 12));
+  const resetPage = useCallback(() => {
+    setCurrentPage(1);
+    setInputPage('1');
+  }, []);
+
+  const loadList = useCallback(async (page) => {
+    if (view !== 'list' && view !== 'log') return;
+    setListLoading(true);
+    try {
+      const response = await fetch(`/api/admin/${view}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          page: page - 1,
+          query,
+          storage: storage || undefined,
+          kind: kind || undefined,
+          blocked: blocked || undefined,
+          metadata: view === 'list' ? metadata || undefined : undefined,
+          sort: view === 'list' ? sort : undefined,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) throw new Error(payload?.message || '获取资源失败');
+      setListData(payload.data || []);
+      setResultTotal(payload.total || 0);
+    } catch (error) {
+      toast.error(error.message || '获取资源失败');
+      setListData([]);
+      setResultTotal(0);
+    } finally {
+      setListLoading(false);
+    }
+  }, [blocked, kind, metadata, query, sort, storage, view]);
+
+  const fetchStats = useCallback(async () => {
+    setStatsLoading(true);
+    setStatsError('');
+    try {
+      const response = await fetch(`/api/admin/stats?range=${range}`);
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) throw new Error(payload?.message || '获取概览失败');
+      setStatsData(payload.data);
+    } catch (error) {
+      setStatsError(error.message || '获取概览失败');
+    } finally {
+      setStatsLoading(false);
+    }
+  }, [range]);
+
+  useEffect(() => {
+    if (view === 'list' || view === 'log') loadList(currentPage);
+  }, [currentPage, loadList, refreshKey, view]);
+
+  useEffect(() => {
+    if (view === 'stats') fetchStats();
+  }, [fetchStats, view]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+      setInputPage(String(totalPages));
+    }
+  }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams();
+    params.set('view', view);
+    if (view === 'stats') params.set('range', range);
+    if (view === 'list' || view === 'log') {
+      if (query) params.set('q', query);
+      if (storage) params.set('storage', storage);
+      if (kind) params.set('kind', kind);
+      if (blocked) params.set('blocked', blocked);
+      params.set('page', String(currentPage));
+      if (view === 'list') {
+        params.set('layout', layout);
+        params.set('sort', sort);
+        if (metadata) params.set('metadata', metadata);
+      }
+    }
+    if (selectedResource) params.set('resource', selectedResource);
+    window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
+  }, [blocked, currentPage, kind, layout, metadata, query, range, selectedResource, sort, storage, view]);
+
+  const setFilter = (setter, value) => {
+    setter(value);
+    resetPage();
+  };
+
+  const handleSearch = (event) => {
+    event.preventDefault();
+    setQuery(searchInput.trim());
+    resetPage();
+  };
+
+  const switchView = (nextView) => {
+    setView(nextView);
+    setSelectedResource('');
+    resetPage();
+  };
+
+  const browseResources = (options = {}) => {
+    setView('list');
+    setSelectedResource('');
+    setSearchInput(options.query || '');
+    setQuery(options.query || '');
+    setStorage(options.storage || '');
+    setKind(options.kind || '');
+    setBlocked(options.blocked || '');
+    setMetadata(options.metadata || '');
+    setSort(options.sort || 'newest');
+    resetPage();
+  };
+
+  const handleBackfill = async () => {
+    setBackfilling(true);
+    try {
+      const response = await fetch('/api/admin/metadata', { method: 'POST' });
+      const payload = await response.json();
+      if (!response.ok || !payload?.success) throw new Error(payload?.message || '补全失败');
+      const { updated, remaining } = payload.data;
+      toast.success(`已补全 ${updated} 个 R2 文件；剩余 ${remaining} 个`);
+      fetchStats();
+    } catch (error) {
+      toast.error(error.message || '补全失败');
+    } finally {
+      setBackfilling(false);
+    }
+  };
+
+  const handleDeleted = useCallback(() => {
+    setSelectedResource('');
+    setRefreshKey((key) => key + 1);
+    fetchStats();
+  }, [fetchStats]);
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage((page) => page + 1);
+      setInputPage(String(currentPage + 1));
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage((page) => page - 1);
+      setInputPage(String(currentPage - 1));
+    }
+  };
+
+  const handleJumpPage = () => {
+    const page = Number.parseInt(inputPage, 10);
+    if (Number.isInteger(page) && page >= 1 && page <= totalPages) setCurrentPage(page);
+    else toast.error('请输入有效页码');
+  };
+
+  const sectionTitle = { stats: '文件资产概览', list: '资源中心', log: '访问日志', apikeys: 'API 管理与文档' }[view];
 
   return (
-    // h-screen + overflow-hidden：整页不滚；仅右侧 main 滚动，侧栏保持固定
-    <div className="h-[100dvh] bg-stone-100 text-stone-900 flex overflow-hidden">
-      {/* 侧栏 A：固定视口高度，不随内容滚动 */}
-      <aside className="hidden md:flex w-52 h-full flex-col border-r border-stone-200 bg-white shrink-0">
-        <div className="h-14 flex items-center px-4 border-b border-stone-100 shrink-0">
-          <span className="font-semibold tracking-tight text-sm">图床 · 运维台</span>
-        </div>
-        <nav className="p-3 space-y-1 flex-1 overflow-y-auto min-h-0">
+    <div className="flex h-[100dvh] overflow-hidden bg-stone-100 text-stone-900">
+      <aside className="hidden h-full w-52 shrink-0 flex-col border-r border-stone-200 bg-white md:flex">
+        <div className="flex h-14 items-center border-b border-stone-100 px-4"><span className="text-sm font-semibold tracking-tight">图床 · 运维台</span></div>
+        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto p-3" aria-label="后台导航">
           {NAV.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => {
-                setView(item.id);
-                setCurrentPage(1);
-                setInputPage(1);
-              }}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm transition ${
-                view === item.id
-                  ? 'bg-stone-900 text-white font-medium'
-                  : 'text-stone-600 hover:bg-stone-50'
-              }`}
-            >
+            <button key={item.id} type="button" onClick={() => switchView(item.id)} className={`w-full rounded-lg px-3 py-2 text-left text-sm transition focus:outline-none focus:ring-2 focus:ring-teal-500 ${view === item.id ? 'bg-stone-900 font-medium text-white' : 'text-stone-600 hover:bg-stone-50'}`}>
               {item.label}
             </button>
           ))}
         </nav>
-        <div className="p-3 border-t border-stone-100 space-y-2 shrink-0">
-          <Link
-            href="/"
-            className="block text-center text-sm py-2 rounded-lg border border-stone-300 bg-stone-50 hover:bg-white font-medium text-stone-800"
-          >
-            ← 返回前台
-          </Link>
-          <button
-            type="button"
-            onClick={() => signOut({ callbackUrl: '/' })}
-            className="w-full text-sm py-2 rounded-lg bg-stone-900 text-white hover:bg-stone-800"
-          >
-            登出
-          </button>
+        <div className="shrink-0 space-y-2 border-t border-stone-100 p-3">
+          <Link href="/" className="block rounded-lg border border-stone-300 bg-stone-50 py-2 text-center text-sm font-medium text-stone-800 hover:bg-white">← 返回前台</Link>
+          <button type="button" onClick={() => signOut({ callbackUrl: '/' })} className="w-full rounded-lg bg-stone-900 py-2 text-sm text-white hover:bg-stone-800">登出</button>
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col min-w-0 min-h-0">
-        {/* 顶栏：贴在内容区顶部，不滚走 */}
-        <header className="h-14 border-b border-stone-200 bg-white flex items-center justify-between px-4 gap-3 shrink-0 z-30">
-          <div className="flex items-center gap-2 md:hidden overflow-x-auto">
-            {NAV.map((item) => (
-              <Chip key={item.id} active={view === item.id} onClick={() => setView(item.id)}>
-                {item.label}
-              </Chip>
-            ))}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="z-30 flex h-14 shrink-0 items-center justify-between gap-3 border-b border-stone-200 bg-white px-4">
+          <div className="hidden text-sm text-stone-500 md:block">{sectionTitle}</div>
+          <div className="flex min-w-0 items-center gap-2 md:hidden overflow-x-auto">
+            {NAV.map((item) => <Chip key={item.id} active={view === item.id} onClick={() => switchView(item.id)}>{item.label}</Chip>)}
           </div>
-          <div className="hidden md:block text-sm text-stone-500">
-            {view === 'list' && '资源中心'}
-            {view === 'log' && '访问日志'}
-            {view === 'stats' && '概览统计'}
-            {view === 'apikeys' && 'API 管理与文档'}
-          </div>
-          <div className="flex items-center gap-2">
-            {view !== 'stats' && view !== 'apikeys' && (
-              <form onSubmit={handleSearch} className="flex items-center gap-2">
-                <input
-                  type="search"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="搜索路径…"
-                  className="border border-stone-200 rounded-lg px-3 py-1.5 text-sm w-36 sm:w-52 bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-300"
-                />
-                <button
-                  type="submit"
-                  className="text-sm px-3 py-1.5 rounded-lg bg-stone-900 text-white hover:bg-stone-800"
-                >
-                  搜索
-                </button>
-              </form>
-            )}
-            {/* 移动端无侧栏，保留回前台入口 */}
-            <Link
-              href="/"
-              className="md:hidden inline-flex items-center text-sm px-3 py-1.5 rounded-lg border border-stone-300 bg-white text-stone-800 font-medium whitespace-nowrap"
-            >
-              ← 前台
-            </Link>
-          </div>
+          {(view === 'list' || view === 'log') ? (
+            <form onSubmit={handleSearch} className="flex items-center gap-2">
+              <input type="search" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} placeholder="搜索路径…" className="w-32 rounded-lg border border-stone-200 bg-stone-50 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 sm:w-52" />
+              <button type="submit" className="min-h-9 rounded-lg bg-stone-900 px-3 text-sm text-white hover:bg-stone-800">搜索</button>
+            </form>
+          ) : <Link href="/" className="inline-flex min-h-9 items-center rounded-lg border border-stone-300 bg-white px-3 text-sm font-medium text-stone-800 md:hidden">← 前台</Link>}
         </header>
 
-        <main className="flex-1 min-h-0 overflow-y-auto p-4 pb-24 w-full">
-          <div className="max-w-7xl mx-auto">
-          {view === 'apikeys' ? (
-            <AdminApiKeys />
-          ) : view === 'stats' ? (
-            <div className="space-y-4">
-              <p className="text-sm text-stone-500">访问 Top 20（可后续点穿筛选）</p>
-              {statsData ? (
-                <div className="grid md:grid-cols-3 gap-4">
-                  <StatsList title="访问前 20 IP" items={statsData.ips} />
-                  <StatsList title="访问前 20 Referer" items={statsData.referers} />
-                  <StatsList title="访问前 20 资源" items={statsData.imgs} />
-                </div>
-              ) : (
-                <div className="text-center text-stone-400 py-16 text-sm">加载中…</div>
-              )}
-            </div>
-          ) : (
-            <>
-              {/* 筛选条 + 视图切换 */}
-              <div className="mb-4 space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex flex-wrap gap-1.5">
-                    {STORAGE_CHIPS.map((c) => (
-                      <Chip key={c.id || 's-all'} active={storage === c.id} onClick={() => setStorage(c.id)}>
-                        {c.label}
-                      </Chip>
-                    ))}
+        <main className="min-h-0 flex-1 overflow-y-auto p-4">
+          <div className="mx-auto w-full max-w-7xl">
+            {view === 'apikeys' ? <AdminApiKeys /> : null}
+            {view === 'stats' ? <AdminInsights data={statsData} error={statsError} loading={statsLoading} range={range} onRangeChange={setRange} onBrowse={browseResources} onOpenResource={setSelectedResource} onBackfill={handleBackfill} backfilling={backfilling} /> : null}
+            {view === 'list' || view === 'log' ? (
+              <div className="space-y-4">
+                <div className="rounded-xl border border-stone-200 bg-white p-3 shadow-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex flex-wrap gap-1.5">{STORAGE_CHIPS.map((chip) => <Chip key={`storage-${chip.id || 'all'}`} active={storage === chip.id} onClick={() => setFilter(setStorage, chip.id)}>{chip.label}</Chip>)}</div>
+                    {view === 'list' ? <div className="flex overflow-hidden rounded-lg border border-stone-200 text-xs font-medium"><button type="button" aria-pressed={layout === 'table'} onClick={() => setLayout('table')} className={`min-h-9 px-3 ${layout === 'table' ? 'bg-stone-900 text-white' : 'bg-white text-stone-600'}`}>列表</button><button type="button" aria-pressed={layout === 'grid'} onClick={() => setLayout('grid')} className={`min-h-9 px-3 ${layout === 'grid' ? 'bg-stone-900 text-white' : 'bg-white text-stone-600'}`}>网格</button></div> : null}
                   </div>
-                  {view === 'list' && (
-                    <div className="flex rounded-lg border border-stone-200 overflow-hidden text-xs font-medium">
-                      <button
-                        type="button"
-                        onClick={() => setLayout('table')}
-                        className={`px-3 py-1.5 ${layout === 'table' ? 'bg-stone-900 text-white' : 'bg-white text-stone-600'}`}
-                      >
-                        列表
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setLayout('grid')}
-                        className={`px-3 py-1.5 ${layout === 'grid' ? 'bg-stone-900 text-white' : 'bg-white text-stone-600'}`}
-                      >
-                        网格
-                      </button>
-                    </div>
-                  )}
+                  <div className="mt-3 flex flex-wrap gap-1.5">{KIND_CHIPS.map((chip) => <Chip key={`kind-${chip.id || 'all'}`} active={kind === chip.id} onClick={() => setFilter(setKind, chip.id)}>{chip.label}</Chip>)}<span className="mx-1 h-5 w-px self-center bg-stone-200" />{BLOCK_CHIPS.map((chip) => <Chip key={`blocked-${chip.id || 'all'}`} active={blocked === chip.id} onClick={() => setFilter(setBlocked, chip.id)}>{chip.label}</Chip>)}</div>
+                  {view === 'list' ? <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-stone-100 pt-3"><div className="flex flex-wrap gap-1.5">{METADATA_CHIPS.map((chip) => <Chip key={`metadata-${chip.id || 'all'}`} active={metadata === chip.id} onClick={() => setFilter(setMetadata, chip.id)}>{chip.label}</Chip>)}</div><label className="ml-auto flex min-h-8 items-center gap-2 text-xs text-stone-600">排序<select value={sort} onChange={(event) => setFilter(setSort, event.target.value)} className="min-h-8 rounded-md border border-stone-200 bg-white px-2 text-sm text-stone-800 focus:outline-none focus:ring-2 focus:ring-teal-500">{SORT_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}</select></label></div> : null}
+                  <p className="mt-3 text-xs text-stone-500" aria-live="polite">共 <strong className="tabular-nums text-stone-800">{resultTotal}</strong> 条{listLoading ? ' · 正在更新' : ''}</p>
                 </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {KIND_CHIPS.map((c) => (
-                    <Chip key={c.id || 'k-all'} active={kind === c.id} onClick={() => setKind(c.id)}>
-                      {c.label}
-                    </Chip>
-                  ))}
-                  <span className="w-px h-5 bg-stone-200 self-center mx-1" />
-                  {BLOCK_CHIPS.map((c) => (
-                    <Chip key={c.id || 'b-all'} active={blocked === c.id} onClick={() => setBlocked(c.id)}>
-                      {c.label}
-                    </Chip>
-                  ))}
-                </div>
-                <div className="flex gap-3 text-xs text-stone-500">
-                  <span>
-                    共 <strong className="text-stone-800 tabular-nums">{resultTotal}</strong> 条
-                  </span>
-                  {loading && <span>加载中…</span>}
-                </div>
-              </div>
 
-              <AdminTable
-                data={listData}
-                layout={view === 'list' ? layout : 'table'}
-              />
-            </>
-          )}
+                <AdminTable data={listData} layout={view === 'list' ? layout : 'table'} onSelect={(item) => setSelectedResource(item.url)} onRefresh={() => { setRefreshKey((key) => key + 1); fetchStats(); }} />
+
+                <nav className="sticky bottom-0 flex items-center justify-center gap-3 border-t border-stone-200 bg-white/95 py-3 backdrop-blur" aria-label="资源分页">
+                  <button type="button" className="min-h-9 rounded-lg bg-stone-100 px-3 text-sm hover:bg-stone-200 disabled:opacity-40" onClick={handlePrevPage} disabled={currentPage === 1}>上一页</button>
+                  <span className="text-xs tabular-nums text-stone-600 sm:text-sm">{currentPage} / {totalPages}</span>
+                  <button type="button" className="min-h-9 rounded-lg bg-stone-100 px-3 text-sm hover:bg-stone-200 disabled:opacity-40" onClick={handleNextPage} disabled={currentPage === totalPages}>下一页</button>
+                  <label className="sr-only" htmlFor="admin-page">跳转页码</label><input id="admin-page" type="number" min="1" max={totalPages} value={inputPage} onChange={(event) => setInputPage(event.target.value)} className="min-h-9 w-16 rounded-lg border border-stone-200 px-2 text-sm" />
+                  <button type="button" className="min-h-9 rounded-lg bg-stone-900 px-3 text-sm text-white" onClick={handleJumpPage}>跳转</button>
+                </nav>
+              </div>
+            ) : null}
           </div>
         </main>
-
-        {view !== 'stats' && view !== 'apikeys' && (
-          <div className="fixed inset-x-0 bottom-0 h-14 border-t border-stone-200 bg-white/95 backdrop-blur flex items-center justify-center z-30">
-            <div className="flex items-center gap-3 text-sm">
-              <button
-                type="button"
-                className="px-3 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 disabled:opacity-40"
-                onClick={handlePrevPage}
-                disabled={currentPage === 1}
-              >
-                上一页
-              </button>
-              <span className="text-stone-600 tabular-nums text-xs sm:text-sm">
-                {currentPage} / {searchTotal || 1}
-              </span>
-              <button
-                type="button"
-                className="px-3 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200"
-                onClick={handleNextPage}
-              >
-                下一页
-              </button>
-              <input
-                type="number"
-                value={inputPage}
-                onChange={(e) => setInputPage(e.target.value)}
-                className="border border-stone-200 rounded-lg px-2 py-1 w-16 text-sm"
-              />
-              <button
-                type="button"
-                className="px-3 py-1.5 rounded-lg bg-stone-900 text-white text-sm"
-                onClick={handleJumpPage}
-              >
-                跳转
-              </button>
-            </div>
-          </div>
-        )}
       </div>
+
+      {selectedResource ? <AdminResourceDrawer url={selectedResource} range={range} onClose={() => setSelectedResource('')} onDeleted={handleDeleted} /> : null}
       <ToastContainer />
     </div>
   );

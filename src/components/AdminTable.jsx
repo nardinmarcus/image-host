@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Switcher from '@/components/SwitchButton';
 import { toast } from 'react-toastify';
 import TooltipItem from '@/components/Tooltip';
-import FullScreenIcon from '@/components/FullScreenIcon';
 import { PhotoProvider, PhotoView } from 'react-photo-view';
 import { formatTimeDisplay } from '@/lib/time';
+import { formatBytes, metadataStatusClass, metadataStatusLabel } from '@/components/admin/adminFormat';
 import {
   getStorage,
   getStorageLabel,
@@ -33,22 +33,14 @@ function isVideoKind(item) {
 }
 
 /**
- * A 表视图 + C 网格视图。layout: 'table' | 'grid'
+ * 资源浏览器：保留表格/网格与快速操作，详情由父层抽屉统一承载。
  */
-export default function AdminTable({ data: initialData = [], layout = 'table' }) {
+export default function AdminTable({ data: initialData = [], layout = 'table', onSelect, onRefresh }) {
   const [data, setData] = useState(initialData);
-  const [modalData, setModalData] = useState(null);
-  const modalRef = useRef(null);
 
   useEffect(() => {
     setData(initialData);
   }, [initialData]);
-
-  const handleClickOutside = (e) => {
-    if (modalRef.current && !modalRef.current.contains(e.target)) {
-      setModalData(null);
-    }
-  };
 
   const handleCopy = (text) => {
     navigator.clipboard.writeText(text).then(() => toast.success('链接复制成功'));
@@ -65,6 +57,7 @@ export default function AdminTable({ data: initialData = [], layout = 'table' })
       if (res_data.success) {
         toast.success('删除成功');
         setData((prev) => prev.filter((item) => item.url !== initName));
+        onRefresh?.();
       } else {
         toast.error(res_data.message);
       }
@@ -84,7 +77,7 @@ export default function AdminTable({ data: initialData = [], layout = 'table' })
     if (window.confirm(msg)) await deleteItem(url);
   };
 
-  const renderPreview = (item, index, className = 'w-full h-full object-cover') => {
+  const renderPreview = (item, className = 'w-full h-full object-cover') => {
     const url = typeof item === 'string' ? item : item.url;
     const full = resolveUrl(url);
     const kind = getKind(typeof item === 'string' ? { url } : item);
@@ -101,11 +94,6 @@ export default function AdminTable({ data: initialData = [], layout = 'table' })
       </div>
     );
   };
-
-  function toggleFullScreen() {
-    if (document.fullscreenElement) document.exitFullscreen();
-    else document.querySelector('.PhotoView-Portal')?.requestFullscreen?.();
-  }
 
   const StorageBadge = ({ url }) => {
     const s = getStorage(url);
@@ -146,17 +134,19 @@ export default function AdminTable({ data: initialData = [], layout = 'table' })
                   key={item.url || index}
                   className="bg-white border border-stone-200 rounded-xl overflow-hidden flex flex-col shadow-sm"
                 >
-                  <div
-                    className="aspect-square bg-stone-100 cursor-pointer relative"
-                    onClick={() => setModalData(item)}
+                  <button
+                    type="button"
+                    className="aspect-square w-full bg-stone-100 cursor-pointer relative text-left focus:outline-none focus:ring-2 focus:ring-inset focus:ring-teal-500"
+                    onClick={() => onSelect?.(item)}
+                    aria-label={`查看资源详情：${item.url}`}
                   >
-                    {renderPreview(item, index)}
+                    {renderPreview(item)}
                     {isBlocked(item.rating) && (
                       <span className="absolute top-2 left-2 text-[10px] font-semibold bg-red-600 text-white px-1.5 py-0.5 rounded">
                         拉黑
                       </span>
                     )}
-                  </div>
+                  </button>
                   <div className="p-2.5 space-y-1.5 flex-1 flex flex-col">
                     <div className="flex gap-1 flex-wrap">
                       <StorageBadge url={item.url} />
@@ -168,6 +158,7 @@ export default function AdminTable({ data: initialData = [], layout = 'table' })
                     <p className="text-[11px] text-stone-400">
                       {formatTimeDisplay(item.time)} · PV {item.total ?? 0}
                     </p>
+                    <p className="text-[11px] text-stone-400">{formatBytes(item.size_bytes)} · {metadataStatusLabel(item.metadata_status)}</p>
                     <div className="mt-auto flex items-center justify-between pt-1">
                       <button
                         type="button"
@@ -190,16 +181,6 @@ export default function AdminTable({ data: initialData = [], layout = 'table' })
             })}
           </div>
         )}
-        {modalData && (
-          <DetailModal
-            modalData={modalData}
-            modalRef={modalRef}
-            onClose={() => setModalData(null)}
-            onOutside={handleClickOutside}
-            onCopy={handleCopy}
-            resolveUrl={resolveUrl}
-          />
-        )}
       </div>
     );
   }
@@ -217,32 +198,16 @@ export default function AdminTable({ data: initialData = [], layout = 'table' })
               <th className="py-2.5 px-3 font-medium">路径</th>
               <th className="py-2.5 px-3 font-medium">来源</th>
               <th className="py-2.5 px-3 font-medium">类型</th>
+              <th className="py-2.5 px-3 font-medium">大小</th>
               <th className="py-2.5 px-3 font-medium">时间</th>
+              <th className="py-2.5 px-3 font-medium">最近访问</th>
               <th className="py-2.5 px-3 font-medium">IP</th>
               <th className="py-2.5 px-3 font-medium">PV</th>
               <th className="py-2.5 px-3 font-medium sticky right-0 bg-stone-50 z-10">操作</th>
             </tr>
           </thead>
           <tbody>
-            <PhotoProvider
-              maskOpacity={0.5}
-              toolbarRender={({ rotate, onRotate, onScale, scale }) => (
-                <>
-                  <svg className="PhotoView-Slider__toolbarIcon" width="44" height="44" viewBox="0 0 768 768" fill="white" onClick={() => onScale(scale + 0.5)}>
-                    <path d="M384 640.5q105 0 180.75-75.75t75.75-180.75-75.75-180.75-180.75-75.75-180.75 75.75-75.75 180.75 75.75 180.75 180.75 75.75zM384 64.5q132 0 225.75 93.75t93.75 225.75-93.75 225.75-225.75 93.75-225.75-93.75-93.75-225.75 93.75-225.75 225.75-93.75zM415.5 223.5v129h129v63h-129v129h-63v-129h-129v-63h129v-129h63z" />
-                  </svg>
-                  <svg className="PhotoView-Slider__toolbarIcon" width="44" height="44" viewBox="0 0 768 768" fill="white" onClick={() => onScale(scale - 0.5)}>
-                    <path d="M384 640.5q105 0 180.75-75.75t75.75-180.75-75.75-180.75-180.75-75.75-180.75 75.75-75.75 180.75 75.75 180.75 180.75 75.75zM384 64.5q132 0 225.75 93.75t93.75 225.75-93.75 225.75-225.75 93.75-225.75-93.75-93.75-225.75 93.75-225.75 225.75-93.75zM223.5 352.5h321v63h-321v-63z" />
-                  </svg>
-                  <svg className="PhotoView-Slider__toolbarIcon" onClick={() => onRotate(rotate + 90)} width="44" height="44" fill="white" viewBox="0 0 768 768">
-                    <path d="M565.5 202.5l75-75v225h-225l103.5-103.5c-34.5-34.5-82.5-57-135-57-106.5 0-192 85.5-192 192s85.5 192 192 192c84 0 156-52.5 181.5-127.5h66c-28.5 111-127.5 192-247.5 192-141 0-255-115.5-255-256.5s114-256.5 255-256.5c70.5 0 135 28.5 181.5 75z" />
-                  </svg>
-                  {typeof document !== 'undefined' && document.fullscreenEnabled && (
-                    <FullScreenIcon onClick={toggleFullScreen} />
-                  )}
-                </>
-              )}
-            >
+            <PhotoProvider maskOpacity={0.5}>
               {data.map((item, index) => {
                 const full = resolveUrl(item.url);
                 const previewable = isImageKind(item) || isVideoKind(item);
@@ -255,23 +220,21 @@ export default function AdminTable({ data: initialData = [], layout = 'table' })
                             <PhotoView
                               width={400}
                               height={400}
-                              render={({ scale, attrs }) => {
-                                const width = attrs.style.width;
-                                const offset = (width - 400) / 400;
+                              render={({ attrs }) => {
                                 return (
                                   <div {...attrs} className={`flex-none bg-white ${attrs.className || ''}`}>
-                                    {renderPreview(item, index)}
+                                    {renderPreview(item)}
                                   </div>
                                 );
                               }}
                             >
-                              {renderPreview(item, index)}
+                              {renderPreview(item)}
                             </PhotoView>
                           ) : (
-                            <PhotoView src={full}>{renderPreview(item, index)}</PhotoView>
+                            <PhotoView src={full}>{renderPreview(item)}</PhotoView>
                           )
                         ) : (
-                          renderPreview(item, index)
+                          renderPreview(item)
                         )}
                       </div>
                     </td>
@@ -279,7 +242,7 @@ export default function AdminTable({ data: initialData = [], layout = 'table' })
                       <button
                         type="button"
                         className="text-left text-stone-800 truncate block w-full hover:text-sky-700"
-                        onClick={() => setModalData(item)}
+                        onClick={() => onSelect?.(item)}
                         title={item.url}
                       >
                         {item.url}
@@ -290,9 +253,14 @@ export default function AdminTable({ data: initialData = [], layout = 'table' })
                     </td>
                     <td className="px-3 py-2"><StorageBadge url={item.url} /></td>
                     <td className="px-3 py-2"><KindBadge item={item} /></td>
+                    <td className="px-3 py-2 text-xs text-stone-600 whitespace-nowrap">
+                      <span>{formatBytes(item.size_bytes)}</span>
+                      <span className={`mt-1 block w-fit rounded px-1 py-0.5 text-[10px] font-medium ${metadataStatusClass(item.metadata_status)}`}>{metadataStatusLabel(item.metadata_status)}</span>
+                    </td>
                     <td className="px-3 py-2 text-stone-500 whitespace-nowrap text-xs">
                       {formatTimeDisplay(item.time)}
                     </td>
+                    <td className="px-3 py-2 text-stone-500 whitespace-nowrap text-xs">{formatTimeDisplay(item.last_accessed_at) || '尚无访问'}</td>
                     <td className="px-3 py-2 text-stone-500 max-w-[100px] truncate text-xs">
                       <TooltipItem tooltipsText={item.ip} position="bottom">{item.ip}</TooltipItem>
                     </td>
@@ -326,55 +294,6 @@ export default function AdminTable({ data: initialData = [], layout = 'table' })
         </table>
       )}
 
-      {modalData && (
-        <DetailModal
-          modalData={modalData}
-          modalRef={modalRef}
-          onClose={() => setModalData(null)}
-          onOutside={handleClickOutside}
-          onCopy={handleCopy}
-          resolveUrl={resolveUrl}
-        />
-      )}
-    </div>
-  );
-}
-
-function DetailModal({ modalData, modalRef, onClose, onOutside, onCopy, resolveUrl }) {
-  const full = resolveUrl(modalData.url);
-  return (
-    <div onClick={onOutside} className="fixed z-50 inset-0 flex items-center justify-center p-4">
-      <div className="fixed inset-0 bg-black/70" />
-      <div
-        ref={modalRef}
-        className="relative bg-white rounded-xl w-full max-w-md p-5 shadow-xl"
-      >
-        <button
-          type="button"
-          className="absolute top-3 right-3 text-stone-400 hover:text-red-600"
-          onClick={onClose}
-          aria-label="关闭"
-        >
-          ✕
-        </button>
-        <h3 className="text-sm font-semibold text-stone-800 mb-1">资源详情</h3>
-        <p className="text-xs text-stone-500 mb-3 break-all">{modalData.url}</p>
-        <div className="flex flex-col gap-2">
-          {[
-            full,
-            `![file](${full})`,
-            `<a href="${full}" target="_blank">${full}</a>`,
-          ].map((text, i) => (
-            <input
-              key={i}
-              readOnly
-              value={text}
-              onClick={() => onCopy(text)}
-              className="w-full px-3 py-2 border border-stone-200 rounded-lg text-xs text-stone-700 cursor-pointer"
-            />
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

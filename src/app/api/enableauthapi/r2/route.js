@@ -66,7 +66,7 @@ export async function POST(request) {
 			const time = await nowTime()
 			try {
 				const rating_index = await getRating(env, `${req_url.origin}/api/rfile/${key}`);
-				await insertImgInfo(env, { url: `/rfile/${key}`, referer: Referer, ip: clientIp, rating: rating_index, time, mime: fileType });
+				await insertImgInfo(env, { url: `/rfile/${key}`, referer: Referer, ip: clientIp, rating: rating_index, time, mime: fileType, sizeBytes: file.size });
 
 				return Response.json({
 					...data,
@@ -83,7 +83,7 @@ export async function POST(request) {
 
 			} catch (error) {
 				console.error('Failed to classify or record R2 upload', error);
-				await insertImgInfo(env, { url: `/rfile/${key}`, referer: Referer, ip: clientIp, rating: -1, time, mime: fileType });
+				await insertImgInfo(env, { url: `/rfile/${key}`, referer: Referer, ip: clientIp, rating: -1, time, mime: fileType, sizeBytes: file.size });
 
 
 				return jsonErr('internal error');

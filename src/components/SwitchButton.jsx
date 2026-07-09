@@ -26,13 +26,13 @@ const updateRating  = async (initName, rating) => {
 };
 
 const Switcher = ({ initialChecked, initName }) => {
-  const [isChecked, setIsChecked] = useState(initialChecked === 3);
+  const [isChecked, setIsChecked] = useState(Number(initialChecked) === 3);
   // const isDisabled = initialChecked > 3;
   // console.log(initName);
   const isDisabled = initName.startsWith('/file') || initName.startsWith('/cfile') || initName.startsWith('/rfile');
 
   useEffect(() => {
-    setIsChecked(initialChecked === 3);
+    setIsChecked(Number(initialChecked) === 3);
   }, [initialChecked]);
 
   const handleCheckboxChange = async () => {

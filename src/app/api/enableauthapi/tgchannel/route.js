@@ -93,7 +93,7 @@ export async function POST(request) {
 			const time = await nowTime()
 			try {
 				const rating_index = await getRating(env, `${fileData.file_id}`);
-				await insertImgInfo(env, { url: `/cfile/${fileData.file_id}`, referer: Referer, ip: clientIp, rating: rating_index, time, mime: fileType });
+				await insertImgInfo(env, { url: `/cfile/${fileData.file_id}`, referer: Referer, ip: clientIp, rating: rating_index, time, mime: fileType, sizeBytes: fileData.file_size, metadataStatus: fileData.file_size === null ? 'unavailable' : 'partial' });
 
 				return Response.json({
 					...data,
@@ -108,7 +108,7 @@ export async function POST(request) {
 				})
 
 			} catch (error) {
-				await insertImgInfo(env, { url: `/cfile/${fileData.file_id}`, referer: Referer, ip: clientIp, rating: -1, time, mime: fileType });
+				await insertImgInfo(env, { url: `/cfile/${fileData.file_id}`, referer: Referer, ip: clientIp, rating: -1, time, mime: fileType, sizeBytes: fileData.file_size, metadataStatus: fileData.file_size === null ? 'unavailable' : 'partial' });
 
 
 				return jsonErr('internal error');
@@ -153,7 +153,8 @@ const getFile = async (response) => {
 
 		const getFileDetails = (file) => ({
 			file_id: file.file_id,
-			file_name: file.file_name || file.file_unique_id
+			file_name: file.file_name || file.file_unique_id,
+			file_size: Number.isFinite(file.file_size) ? file.file_size : null,
 		});
 
 		if (response.result.photo) {

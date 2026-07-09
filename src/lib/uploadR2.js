@@ -63,6 +63,7 @@ export async function uploadFileToR2(request, env, file, { refererOverride } = {
         rating: 0,
         time,
         mime: fileType,
+        sizeBytes: file.size,
       });
       return Response.json(
         {
@@ -83,6 +84,7 @@ export async function uploadFileToR2(request, env, file, { refererOverride } = {
           rating: -1,
           time,
           mime: fileType,
+          sizeBytes: file.size,
         });
       } catch {
         /* ignore */
