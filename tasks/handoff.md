@@ -71,9 +71,11 @@ export async function GET(request) {
 - admin useCallback 依赖数组补齐
 - **用户验证通过**：① 登录后 R2 上传 ② 预览/链接 Tab/复制 ③ 后台统计 Tab ④ 测试图清理
 
-### 已完成 · Cache-Control（本轮）
+### 已完成 · Cache-Control（commit `e2f267d`，生产已验证）
 - `src/lib/http.js`：`MEDIA_CACHE_CONTROL` / `applyMediaCacheHeaders`
-- `rfile`/`cfile`/`file`：成功 200 响应带 `public, max-age=3600, s-maxage=86400`；`file` 补 `caches.default`
+- `rfile`/`cfile`/`file`：成功 200 响应带缓存策略；`file` 补 `caches.default`
+- 生产实测新图：`Cache-Control: public, max-age=…, s-maxage=86400`，二次请求 `cf-cache-status: HIT`
+- 注意：CF 控制台若配置了 Browser Cache TTL，可能把浏览器 `max-age` 改写成 14400；`s-maxage` 仍以代码为准
 
 ### 下一步（按优先级）
 1. **首页 client/server 边界**（统计/登录态服务端取数，减少首屏串行 3 个 API）
