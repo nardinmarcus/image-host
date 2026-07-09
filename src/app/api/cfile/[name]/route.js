@@ -29,6 +29,16 @@ function getContentType(fileName) {
   return mimeTypes[extension] || 'application/octet-stream';
 }
 
+// 读文件头魔术字节判断 MIME（TG getFile 返回的 file_path 常无扩展名，按扩展名推断会得到 octet-stream 导致乱码）
+function detectMimeType(buf) {
+  const b = new Uint8Array(buf.slice(0, 12));
+  if (b[0] === 0xFF && b[1] === 0xD8) return 'image/jpeg';
+  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47) return 'image/png';
+  if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46) return 'image/gif';
+  if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46) return 'image/webp';
+  return null;
+}
+
 
 export async function OPTIONS(request) {
   return new Response(null, {
@@ -94,9 +104,13 @@ export async function GET(request, { params }) {
     }
 
     const fileBuffer = await res.arrayBuffer();
-    const contentType = getContentType(fileName);
+    const mimeType = detectMimeType(fileBuffer);
+    const contentType = mimeType || getContentType(fileName);
+    // 文件名补扩展名（TG file_path 常无扩展名，如 file_244）
+    const ext = mimeType ? mimeType.split('/')[1].replace('jpeg', 'jpg') : '';
+    const downloadName = ext && !fileName.includes('.') ? `${fileName}.${ext}` : fileName;
     const responseHeaders = {
-      "Content-Disposition": `attachment; filename=${fileName}`,
+      "Content-Disposition": `attachment; filename=${downloadName}`,
       "Access-Control-Allow-Origin": "*",
       "Content-Type": contentType
     };
