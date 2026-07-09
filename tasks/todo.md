@@ -40,7 +40,7 @@
 - [x] 错误响应 jsonErr 脱敏（阶段 1 已做）
 - [x] 凭据比较改 safeEqual（纯 JS 常量时间，edge 无 crypto.timingSafeEqual）
 - 验证：lint exit 0；运行时验证（403/拒大文件）待部署
-- ⚠️ tgchannel 原 audio/pdf 支持被新 MIME 校验收窄为 image/video，待确认是否放宽
+- [x] tgchannel 恢复 audio/pdf（与 image/video 一并白名单；getFile 补 audio）
 
 ### 阶段 4 · 存储闭环与功能 bug（0.5 天）
 - [x] 修 cfile 计数 bug（阶段 1 顺带，logRequest 改用 incrementTotal('/cfile/...')）

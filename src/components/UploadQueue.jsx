@@ -66,7 +66,23 @@ export default function UploadQueue({
                   className="w-full h-full"
                 />
               )}
-              {!file.type.startsWith('image/') && !file.type.startsWith('video/') && (
+              {file.type.startsWith('audio/') && (
+                <div className="flex flex-col items-center justify-center w-full h-full bg-gray-100 p-2">
+                  <p className="text-xs text-gray-600 truncate w-full text-center mb-1">
+                    {file.name}
+                  </p>
+                  <audio src={filePreviews[index]} controls className="w-full" />
+                </div>
+              )}
+              {file.type === 'application/pdf' && (
+                <div className="flex items-center justify-center w-full h-full bg-gray-200 text-gray-700 p-2">
+                  <p className="text-sm text-center break-all">PDF<br />{file.name}</p>
+                </div>
+              )}
+              {!file.type.startsWith('image/') &&
+                !file.type.startsWith('video/') &&
+                !file.type.startsWith('audio/') &&
+                file.type !== 'application/pdf' && (
                 <div className="flex items-center justify-center w-full h-full bg-gray-200 text-gray-700">
                   <p>{file.name}</p>
                 </div>

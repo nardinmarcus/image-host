@@ -88,9 +88,14 @@ export async function GET(request) {
 - 首屏不再请求 `/api/total`、`/api/ip`、`/api/enableauthapi/isauth`
 - 生产 SSR HTML 已内嵌 total（如 129）与客户端 IP，未登录仍显示「需登录后上传」
 
+### 已完成 · tgchannel audio/pdf（本轮）
+- 白名单恢复：`image/*` / `video/*` / `audio/*` / `application/pdf`
+- `getFile` 补 audio/voice；失败返回 502
+- cfile 补 audio/pdf 扩展名与魔术字节
+- 前端：选 TG_Channel 时 accept 含 audio/pdf；队列/预览支持音频与 PDF
+
 ### 下一步（按优先级）
-1. **tgchannel audio/pdf 收窄**（MIME 只放行 image/video，fileTypeMap 仍写 audio/pdf）：需用户确认是否放宽
-2. **time 字段改 ISO8601**（`nowTime()` 仍本地化字符串；需迁移，D1 不可逆，谨慎）
+1. **time 字段改 ISO8601**（`nowTime()` 仍本地化字符串；需迁移，D1 不可逆，谨慎）
 
 ### 风险高（单独做）
 6. **迁移 OpenNext**（`@cloudflare/next-on-pages` 已于 2025-09-29 归档）：要改 15+ route + 去掉 `runtime = 'edge'` + middleware 兼容 + 构建重做。**单独完整周期**

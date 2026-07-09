@@ -24,7 +24,13 @@ function getContentType(fileName) {
     'mov': 'video/quicktime',
     'wmv': 'video/x-ms-wmv',
     'flv': 'video/x-flv',
-    'mkv': 'video/x-matroska'
+    'mkv': 'video/x-matroska',
+    'mp3': 'audio/mpeg',
+    'm4a': 'audio/mp4',
+    'ogg': 'audio/ogg',
+    'wav': 'audio/wav',
+    'flac': 'audio/flac',
+    'aac': 'audio/aac',
   };
   return mimeTypes[extension] || 'application/octet-stream';
 }
@@ -35,7 +41,18 @@ function detectMimeType(buf) {
   if (b[0] === 0xFF && b[1] === 0xD8) return 'image/jpeg';
   if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4E && b[3] === 0x47) return 'image/png';
   if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46) return 'image/gif';
-  if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46) return 'image/webp';
+  // RIFF：先 WAVE 再 WEBP（同为 RIFF 头）
+  if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[3] === 0x46) {
+    if (b[8] === 0x57 && b[9] === 0x41 && b[10] === 0x56 && b[11] === 0x45) return 'audio/wav';
+    if (b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) return 'image/webp';
+  }
+  // %PDF
+  if (b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46) return 'application/pdf';
+  // ID3 mp3 / frame sync
+  if (b[0] === 0x49 && b[1] === 0x44 && b[2] === 0x33) return 'audio/mpeg';
+  if (b[0] === 0xFF && (b[1] & 0xE0) === 0xE0) return 'audio/mpeg';
+  // Ogg
+  if (b[0] === 0x4F && b[1] === 0x67 && b[2] === 0x67 && b[3] === 0x53) return 'audio/ogg';
   return null;
 }
 

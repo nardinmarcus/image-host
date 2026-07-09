@@ -76,6 +76,32 @@ export default function ResultLinks({
         </video>
       );
     }
+    if (data.type.startsWith('audio/')) {
+      return (
+        <div
+          key={`audio-${index}`}
+          className="w-36 h-40 m-2 flex flex-col items-center justify-center bg-slate-100 rounded"
+        >
+          <span className="text-xs text-gray-500 mb-1 truncate w-full px-1 text-center">
+            {data.name}
+          </span>
+          <audio src={data.url} controls className="w-32" />
+        </div>
+      );
+    }
+    if (data.type === 'application/pdf') {
+      return (
+        <a
+          key={`pdf-${index}`}
+          href={data.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-36 h-40 m-2 flex items-center justify-center bg-slate-100 rounded text-sm text-blue-600 underline"
+        >
+          PDF 打开
+        </a>
+      );
+    }
     return (
       <img
         key={`image-${index}`}

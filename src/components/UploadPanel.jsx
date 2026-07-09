@@ -34,13 +34,23 @@ export default function UploadPanel({
     fileInputRef?.current?.click();
   };
 
+  // R2：图片/视频；TG_Channel：另支持音频与 PDF
+  const accept =
+    selectedOption === 'tgchannel'
+      ? 'image/*,video/*,audio/*,application/pdf'
+      : 'image/*,video/*';
+  const typeHint =
+    selectedOption === 'tgchannel'
+      ? '图片/视频/音频/PDF'
+      : '图片/视频';
+
   return (
     <>
       <div className="flex flex-row">
         <div className="flex flex-col">
-          <div className="text-gray-800 text-lg">图片或视频上传</div>
+          <div className="text-gray-800 text-lg">文件上传</div>
           <div className="mb-4 text-sm text-gray-500">
-            上传文件最大 5 MB;本站已托管{' '}
+            最大 5 MB（{typeHint}）；本站已托管{' '}
             <span className="text-cyan-600">{total}</span> 张图片; 你访问本站的IP是：
             <span className="text-cyan-600">{ip}</span>
           </div>
@@ -77,7 +87,7 @@ export default function UploadPanel({
               style={{ width: '20px', height: '20px' }}
               className="mr-2"
             />
-            选择图片
+            选择文件
           </label>
           <input
             id="file-upload"
@@ -86,7 +96,7 @@ export default function UploadPanel({
             className="hidden"
             onChange={onFileChange}
             multiple
-            accept="image/*,video/*"
+            accept={accept}
           />
         </div>
         <div className="md:col-span-5 col-span-8">

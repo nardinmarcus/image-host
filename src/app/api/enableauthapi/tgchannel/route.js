@@ -26,8 +26,15 @@ export async function POST(request) {
 	const file = formData.get('file');
 	if (!file) return jsonErr('No file uploaded', 400);
 	if (file.size > 5 * 1024 * 1024) return jsonErr('file too large (max 5MB)', 413);
-	if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) return jsonErr('invalid file type', 400);
-	const fileType = file.type;
+
+	const fileType = file.type || '';
+	// TG 频道支持 image / video / audio / pdf（与 fileTypeMap 对齐）
+	const allowed =
+		fileType.startsWith('image/') ||
+		fileType.startsWith('video/') ||
+		fileType.startsWith('audio/') ||
+		fileType === 'application/pdf';
+	if (!allowed) return jsonErr('invalid file type (image/video/audio/pdf)', 400);
 
 	const req_url = new URL(request.url);
 
@@ -38,12 +45,12 @@ export async function POST(request) {
 		'application/pdf': { url: 'sendDocument', type: 'document' }
 	};
 
-	let defaultType = { url: 'sendDocument', type: 'document' };
-
-	const { url: endpoint, type: fileTypevalue } = Object.keys(fileTypeMap)
-		.find(key => fileType.startsWith(key))
-		? fileTypeMap[Object.keys(fileTypeMap).find(key => fileType.startsWith(key))]
-		: defaultType;
+	const matchedKey = Object.keys(fileTypeMap).find((key) =>
+		fileType.startsWith(key) || fileType === key
+	);
+	// 不落 defaultType：避免未知 MIME 误走 sendDocument
+	if (!matchedKey) return jsonErr('invalid file type (image/video/audio/pdf)', 400);
+	const { url: endpoint, type: fileTypevalue } = fileTypeMap[matchedKey];
 
 
 	const up_url = `https://api.telegram.org/bot${env.TG_BOT_TOKEN}/${endpoint}`;
@@ -63,6 +70,9 @@ export async function POST(request) {
 
 		let responseData = await res_img.json();
 		const fileData = await getFile(responseData);
+		if (!fileData?.file_id) {
+			return jsonErr('telegram upload failed', 502);
+		}
 
 		const data = {
 			"url": `${req_url.origin}/api/cfile/${fileData.file_id}`,
@@ -154,6 +164,14 @@ const getFile = async (response) => {
 
 		if (response.result.video) {
 			return getFileDetails(response.result.video);
+		}
+
+		// sendAudio / sendVoice
+		if (response.result.audio) {
+			return getFileDetails(response.result.audio);
+		}
+		if (response.result.voice) {
+			return getFileDetails(response.result.voice);
 		}
 
 		if (response.result.document) {

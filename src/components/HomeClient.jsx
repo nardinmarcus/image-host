@@ -196,10 +196,15 @@ export default function HomeClient({
   }, [filePreviews]);
 
   const handleImageClick = (index) => {
-    if (selectedFiles[index].type.startsWith("image/")) {
+    const t = selectedFiles[index].type;
+    if (t.startsWith("image/")) {
       setBoxtype("img");
-    } else if (selectedFiles[index].type.startsWith("video/")) {
+    } else if (t.startsWith("video/")) {
       setBoxtype("video");
+    } else if (t.startsWith("audio/")) {
+      setBoxtype("audio");
+    } else if (t === "application/pdf") {
+      setBoxtype("pdf");
     } else {
       setBoxtype("other");
     }
@@ -329,6 +334,21 @@ export default function HomeClient({
                 className="object-cover w-9/10 h-auto rounded-lg"
                 controls
               />
+            ) : boxType === "audio" ? (
+              <div className="p-6 bg-white rounded-lg" onClick={(e) => e.stopPropagation()}>
+                <audio src={selectedImage} controls className="w-80 max-w-full" />
+              </div>
+            ) : boxType === "pdf" ? (
+              <div className="p-6 bg-white rounded-lg" onClick={(e) => e.stopPropagation()}>
+                <a
+                  href={selectedImage}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 underline"
+                >
+                  在新标签打开 PDF
+                </a>
+              </div>
             ) : boxType === "other" ? (
               <div className="p-4 bg-white text-black rounded">
                 <p>Unsupported file type</p>
