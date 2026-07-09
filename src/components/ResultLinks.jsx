@@ -57,8 +57,8 @@ export default function ResultLinks({
         <img
           key={`image-${index}`}
           src={data.url}
-          alt={`Uploaded ${index}`}
-          className="object-cover w-36 h-40 m-2"
+          alt={`已上传 ${index}`}
+          className="object-cover w-28 h-28 rounded-xl cursor-pointer"
           onClick={() => onPreviewClick(fileUrl, 'img')}
         />
       );
@@ -68,7 +68,7 @@ export default function ResultLinks({
         <video
           key={`video-${index}`}
           src={data.url}
-          className="object-cover w-36 h-40 m-2"
+          className="object-cover w-28 h-28 rounded-xl cursor-pointer"
           controls
           onClick={() => onPreviewClick(fileUrl, 'video')}
         >
@@ -80,12 +80,12 @@ export default function ResultLinks({
       return (
         <div
           key={`audio-${index}`}
-          className="w-36 h-40 m-2 flex flex-col items-center justify-center bg-slate-100 rounded"
+          className="w-28 h-28 flex flex-col items-center justify-center bg-slate-50 rounded-xl p-2 gap-1"
         >
-          <span className="text-xs text-gray-500 mb-1 truncate w-full px-1 text-center">
+          <span className="text-xs text-slate-500 truncate w-full px-1 text-center">
             {data.name}
           </span>
-          <audio src={data.url} controls className="w-32" />
+          <audio src={data.url} controls className="w-full" />
         </div>
       );
     }
@@ -106,7 +106,7 @@ export default function ResultLinks({
             target="_blank"
             rel="noopener noreferrer"
             download
-            className="w-36 h-40 m-2 flex items-center justify-center bg-amber-50 rounded text-sm text-blue-600 underline text-center px-1"
+            className="w-28 h-28 flex items-center justify-center bg-amber-50 rounded-xl text-sm text-amber-700 font-semibold text-center px-2"
           >
             {label}
           </a>
@@ -117,8 +117,8 @@ export default function ResultLinks({
       <img
         key={`image-${index}`}
         src={data.url}
-        alt={`Uploaded ${index}`}
-        className="object-cover w-36 h-40 m-2"
+        alt={`已上传 ${index}`}
+        className="object-cover w-28 h-28 rounded-xl cursor-pointer"
         onClick={() => onPreviewClick(fileUrl, 'other')}
       />
     );
@@ -127,28 +127,29 @@ export default function ResultLinks({
   const renderTabContent = () => {
     if (activeTab === 'preview') {
       return (
-        <div className="flex flex-col">
+        <div className="flex flex-col gap-3">
           {uploadedImages.map((data, index) => (
             <div
               key={index}
-              className="m-2 rounded-2xl ring-offset-2 ring-2 ring-slate-100 flex flex-row"
+              className="flex flex-row items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_2px_12px_rgb(15_23_42/0.04)]"
             >
               {renderFile(data, index)}
-              <div className="flex flex-col justify-center w-4/5">
+              <div className="flex flex-col gap-1.5 flex-1 min-w-0">
                 {[
-                  { text: data.url },
-                  { text: `![${data.name}](${data.url})` },
+                  { text: data.url, label: 'URL' },
+                  { text: `![${data.name}](${data.url})`, label: 'Markdown' },
                   {
                     text: `<a href="${data.url}" target="_blank"><img src="${data.url}"></a>`,
+                    label: 'HTML',
                   },
-                  { text: `[img]${data.url}[/img]` },
+                  { text: `[img]${data.url}[/img]`, label: 'BBCode' },
                 ].map((item, i) => (
                   <input
                     key={`input-${i}`}
                     readOnly
                     value={item.text}
                     onClick={() => handleCopy(item.text)}
-                    className="px-3 my-1 py-2 border border-gray-300 rounded-lg bg-white text-sm text-gray-800 focus:outline-none placeholder-gray-400"
+                    className="px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 text-xs text-slate-700 focus:outline-none focus:border-teal-400 focus:bg-white cursor-pointer hover:border-slate-300 truncate"
                   />
                 ))}
               </div>
@@ -164,7 +165,7 @@ export default function ResultLinks({
     return (
       <div
         ref={parentRef}
-        className="p-4 bg-slate-100"
+        className="p-4 bg-slate-50 rounded-2xl border border-slate-200 cursor-pointer"
         onClick={handleCopyCode}
         role="button"
         tabIndex={0}
@@ -177,8 +178,8 @@ export default function ResultLinks({
         aria-label="点击复制全部链接"
       >
         {uploadedImages.map((data, index) => (
-          <div key={index} className="mb-2">
-            <code className="w-2 break-all">{tpl(data)}</code>
+          <div key={index} className="mb-2 last:mb-0">
+            <code className="block text-xs text-slate-700 break-all font-mono leading-relaxed">{tpl(data)}</code>
           </div>
         ))}
       </div>
@@ -188,17 +189,17 @@ export default function ResultLinks({
   if (uploadedImages.length === 0) return null;
 
   return (
-    <div className="w-full mt-4 min-h-[200px] mb-[60px]">
-      <div className="flex flex-wrap gap-3 mb-4 border-b border-gray-300">
+    <div className="w-full mt-8">
+      <div className="flex flex-wrap gap-2 mb-4">
         {TABS.map((tab) => (
           <button
             key={tab.id}
             type="button"
             onClick={() => onTabChange(tab.id)}
-            className={`px-4 py-2 ${
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               activeTab === tab.id
-                ? 'bg-blue-500 text-white'
-                : 'bg-gray-200 text-gray-800'
+                ? 'bg-teal-50 text-teal-700'
+                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'
             }`}
           >
             {tab.label}

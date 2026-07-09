@@ -10,7 +10,7 @@ import ResultLinks from "@/components/ResultLinks";
 const LoginButton = ({ onClick, children }) => (
   <button
     onClick={onClick}
-    className="px-4 py-2 mx-2 w-28 sm:w-28 md:w-20 lg:w-16 xl:w-16 2xl:w-20 bg-blue-500 text-white rounded"
+    className="px-5 py-2 rounded-xl text-sm font-semibold bg-teal-600 text-white shadow-[0_4px_14px_rgb(13_148_136/0.25)] hover:bg-teal-700"
   >
     {children}
   </button>
@@ -312,15 +312,24 @@ export default function HomeClient({
   };
 
   return (
-    <main className="overflow-auto h-full flex w-full min-h-screen flex-col items-center justify-between">
-      <header className="fixed top-0 h-[50px] left-0 w-full border-b bg-white flex z-50 justify-center items-center">
-        <nav className="flex justify-between items-center w-full max-w-4xl px-4">
-          图床
+    <main className="min-h-screen flex flex-col">
+      {/* 顶栏：融入内容流，不固定吃屏幕 */}
+      <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/70 border-b border-slate-200/60">
+        <nav className="max-w-2xl mx-auto px-5 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-teal-600 flex items-center justify-center text-white font-extrabold shadow-[0_2px_8px_rgb(13_148_136/0.3)]">
+              N
+            </div>
+            <span className="text-lg font-extrabold tracking-tight text-slate-900">
+              Namoo Pix
+            </span>
+          </div>
+          {renderButton()}
         </nav>
-        {renderButton()}
       </header>
 
-      <div className="mt-[60px] w-9/10 sm:w-9/10 md:w-9/10 lg:w-9/10 xl:w-3/5 2xl:w-2/3">
+      {/* 主内容区 */}
+      <div className="flex-1 w-full max-w-2xl mx-auto px-5 py-10">
         <UploadPanel
           total={Total}
           ip={IP}
@@ -354,16 +363,18 @@ export default function HomeClient({
         />
       </div>
 
+      {/* 预览弹层 */}
       {selectedImage && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-6"
           onClick={handleCloseImage}
         >
-          <div className="relative flex flex-col items-center justify-between">
+          <div className="relative flex flex-col items-center max-w-4xl max-h-[90vh]">
             <button
               type="button"
-              className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center"
+              className="absolute -top-12 right-0 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xl backdrop-blur-md"
               onClick={handleCloseImage}
+              aria-label="关闭预览"
             >
               &times;
             </button>
@@ -371,60 +382,54 @@ export default function HomeClient({
             {boxType === "img" ? (
               <img
                 src={selectedImage}
-                alt="Selected"
-                width={500}
-                height={500}
-                className="object-cover w-9/10 h-auto rounded-lg"
+                alt="预览"
+                className="object-contain max-w-full max-h-[85vh] rounded-2xl shadow-2xl"
               />
             ) : boxType === "video" ? (
               <video
                 src={selectedImage}
-                width={500}
-                height={500}
-                className="object-cover w-9/10 h-auto rounded-lg"
+                className="object-contain max-w-full max-h-[85vh] rounded-2xl shadow-2xl"
                 controls
               />
             ) : boxType === "audio" ? (
-              <div className="p-6 bg-white rounded-lg" onClick={(e) => e.stopPropagation()}>
+              <div className="p-8 bg-white rounded-2xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
                 <audio src={selectedImage} controls className="w-80 max-w-full" />
               </div>
             ) : boxType === "pdf" ? (
-              <div className="p-6 bg-white rounded-lg" onClick={(e) => e.stopPropagation()}>
+              <div className="p-8 bg-white rounded-2xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
                 <a
                   href={selectedImage}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-blue-600 underline"
+                  className="text-teal-600 font-semibold underline"
                 >
                   在新标签打开 PDF
                 </a>
               </div>
             ) : boxType === "doc" ? (
-              <div className="p-6 bg-white rounded-lg" onClick={(e) => e.stopPropagation()}>
+              <div className="p-8 bg-white rounded-2xl shadow-2xl" onClick={(e) => e.stopPropagation()}>
                 <a
                   href={selectedImage}
                   target="_blank"
                   rel="noopener noreferrer"
                   download
-                  className="text-blue-600 underline"
+                  className="text-teal-600 font-semibold underline"
                 >
                   下载文档
                 </a>
               </div>
             ) : boxType === "other" ? (
-              <div className="p-4 bg-white text-black rounded">
-                <p>Unsupported file type</p>
+              <div className="p-8 bg-white rounded-2xl shadow-2xl text-slate-900">
+                <p>不支持预览此文件类型</p>
               </div>
             ) : (
-              <div>未知类型</div>
+              <div className="text-white">未知类型</div>
             )}
           </div>
         </div>
       )}
 
-      <div className="fixed inset-x-0 bottom-0 h-[50px] bg-slate-200 w-full flex z-50 justify-center items-center">
-        <Footer />
-      </div>
+      <Footer />
     </main>
   );
 }

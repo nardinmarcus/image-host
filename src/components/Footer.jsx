@@ -1,16 +1,22 @@
-import { useState, useEffect } from 'react';
 import Link from 'next/link';
+
 export default function Footer() {
   return (
-    <footer className="w-full  h-1/12 text-center  bg-slate-200  flex flex-col justify-center items-center">
-      <div >
-        <p className="text-xs text-gray-500">Copyright Ⓒ {new Date().getFullYear()} All rights reserved. 请勿上传违反中国法律的图片，违者后果自负。 本程序基于Cloudflare Pages，开源于
-          <Link 
-          href="https://github.com/x-dr/telegraph-Image"
-          className="text-blue-300  hover:text-red-900 ml-1"
-          target="_blank"
-          rel="noopener noreferrer"
-          >GitHub Telegraph-Image</Link> </p>
+    <footer className="w-full py-8 mt-auto">
+      <div className="max-w-2xl mx-auto px-5 text-center">
+        <p className="text-xs text-slate-400 leading-relaxed">
+          © {new Date().getFullYear()} Namoo Pix · 请勿上传违反中国法律的图片，违者后果自负 ·
+          基于{' '}
+          <Link
+            href="https://github.com/x-dr/telegraph-Image"
+            className="text-teal-600 hover:text-teal-700 font-medium"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Telegraph-Image
+          </Link>{' '}
+         开源
+        </p>
       </div>
     </footer>
   );

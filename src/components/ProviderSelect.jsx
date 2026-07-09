@@ -6,22 +6,20 @@
  */
 export default function ProviderSelect({ value, onChange, isAuth }) {
   return (
-    <div className="flex flex-col sm:flex-col md:w-auto lg:flex-row xl:flex-row 2xl:flex-row mx-auto items-center">
-      <span className="text-lg sm:text-sm md:text-sm lg:text-xl xl:text-xl 2xl:text-xl">
-        上传接口：
-      </span>
+    <div className="flex items-center gap-2.5">
+      <span className="text-sm font-medium text-slate-600">上传接口</span>
       <select
         value={value}
         onChange={onChange}
         disabled={!isAuth}
-        className="text-lg p-2 border rounded text-center w-auto sm:w-auto md:w-auto lg:w-auto xl:w-auto 2xl:w-36 disabled:opacity-60 disabled:cursor-not-allowed"
+        className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-800 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed focus:border-teal-400 focus:ring-2 focus:ring-teal-100"
         aria-label="选择上传接口"
       >
         <option value="r2">R2</option>
         <option value="tgchannel">TG_Channel</option>
       </select>
       {!isAuth && (
-        <span className="ml-2 text-xs text-amber-600">需登录后上传</span>
+        <span className="text-xs text-amber-600 font-medium">需登录后上传</span>
       )}
     </div>
   );

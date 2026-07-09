@@ -51,23 +51,27 @@ export default function UploadPanel({
       : '图片/视频存 R2；文档/音频/PDF 会自动切 TG 发频道';
 
   return (
-    <>
-      <div className="flex flex-row">
-        <div className="flex flex-col">
-          <div className="text-gray-800 text-lg">文件上传</div>
-          <div className="mb-4 text-sm text-gray-500">
-            最大 20 MB（{typeHint}）；本站已托管{' '}
-            <span className="text-cyan-600">{total}</span> 张图片; 你访问本站的IP是：
-            <span className="text-cyan-600">{ip}</span>
-          </div>
-        </div>
-        <ProviderSelect
-          value={selectedOption}
-          onChange={onSelectChange}
-          isAuth={isAuth}
-        />
+    <section className="flex flex-col gap-5">
+      {/* 标题 + 统计 */}
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+          上传你的图片
+        </h1>
+        <p className="text-sm text-slate-500 leading-relaxed">
+          最大 20 MB（{typeHint}）。本站已托管{' '}
+          <span className="font-semibold text-teal-600 tabular-nums">{total}</span>{' '}
+          张图片；你的 IP：<span className="font-semibold text-teal-600">{ip}</span>
+        </p>
       </div>
 
+      {/* 接口选择 */}
+      <ProviderSelect
+        value={selectedOption}
+        onChange={onSelectChange}
+        isAuth={isAuth}
+      />
+
+      {/* 拖拽/粘贴上传队列 */}
       <UploadQueue
         selectedFiles={selectedFiles}
         filePreviews={filePreviews}
@@ -82,65 +86,55 @@ export default function UploadPanel({
         onOpenFilePicker={openFilePicker}
       />
 
-      <div className="w-full rounded-md shadow-sm overflow-hidden mt-4 grid grid-cols-8">
-        <div className="md:col-span-1 col-span-8">
-          <label
-            htmlFor="file-upload"
-            className="w-full h-10 bg-blue-500 cursor-pointer flex items-center justify-center text-white"
-          >
-            <FontAwesomeIcon
-              icon={faImages}
-              style={{ width: '20px', height: '20px' }}
-              className="mr-2"
-            />
-            选择文件
-          </label>
-          <input
-            id="file-upload"
-            ref={fileInputRef}
-            type="file"
-            className="hidden"
-            onChange={onFileChange}
-            multiple
-            accept={accept}
-          />
+      {/* 操作栏 */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <label
+          htmlFor="file-upload"
+          className="cursor-pointer flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-teal-600 text-white font-semibold text-sm shadow-[0_4px_14px_rgb(13_148_136/0.25)] hover:bg-teal-700"
+        >
+          <FontAwesomeIcon icon={faImages} className="w-4 h-4" />
+          选择文件
+        </label>
+        <input
+          id="file-upload"
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          onChange={onFileChange}
+          multiple
+          accept={accept}
+        />
+
+        <div className="flex-1 flex items-center px-4 py-2.5 rounded-xl bg-slate-100/70 text-sm text-slate-600">
+          已选择 <span className="font-semibold text-slate-900 mx-1 tabular-nums">{selectedFiles.length}</span> 张，共{' '}
+          <span className="font-semibold text-slate-900 mx-1 tabular-nums">{totalSizeMB}</span> MB
         </div>
-        <div className="md:col-span-5 col-span-8">
-          <div className="w-full h-10 bg-slate-200 leading-10 px-4 text-center md:text-left">
-            已选择 {selectedFiles.length} 张，共 {totalSizeMB} M
-          </div>
-        </div>
-        <div className="md:col-span-1 col-span-3">
+
+        <div className="flex gap-3">
           <button
             type="button"
-            className="w-full bg-red-500 cursor-pointer h-10 flex items-center justify-center text-white"
+            disabled={selectedFiles.length === 0}
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white text-red-500 font-semibold text-sm border border-red-200 ${
+              selectedFiles.length === 0 ? 'opacity-40 pointer-events-none' : 'hover:bg-red-50'
+            }`}
             onClick={onClear}
           >
-            <FontAwesomeIcon
-              icon={faTrashAlt}
-              style={{ width: '20px', height: '20px' }}
-              className="mr-2"
-            />
+            <FontAwesomeIcon icon={faTrashAlt} className="w-4 h-4" />
             清除
           </button>
-        </div>
-        <div className="md:col-span-1 col-span-5">
           <button
             type="button"
-            className={`w-full bg-green-500 cursor-pointer h-10 flex items-center justify-center text-white ${
-              uploading ? 'pointer-events-none opacity-50' : ''
+            disabled={uploading || selectedFiles.length === 0}
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-slate-900 text-white font-semibold text-sm shadow-sm hover:bg-slate-800 ${
+              uploading || selectedFiles.length === 0 ? 'pointer-events-none opacity-50' : ''
             }`}
             onClick={onUploadAll}
           >
-            <FontAwesomeIcon
-              icon={faUpload}
-              style={{ width: '20px', height: '20px' }}
-              className="mr-2"
-            />
+            <FontAwesomeIcon icon={faUpload} className="w-4 h-4" />
             上传
           </button>
         </div>
       </div>
-    </>
+    </section>
   );
 }

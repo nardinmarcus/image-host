@@ -1,0 +1,14 @@
+{
+  "id": "C",
+  "label": "C: C",
+  "name": "C",
+  "notes": "",
+  "dials": {
+    "variance": 5,
+    "motion": 4,
+    "density": 6
+  },
+  "adjustments": "",
+  "source": "click",
+  "receivedAt": "2026-07-09T16:59:36.800Z"
+}

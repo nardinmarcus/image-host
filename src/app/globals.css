@@ -2,75 +2,109 @@
 @tailwind components;
 @tailwind utilities;
 
-/* :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+/* ========== Namoo Pix · Soft Studio 设计 token ========== */
+:root {
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+
+  --shadow-sm: 0 1px 3px rgb(15 23 42 / 0.06);
+  --shadow-md: 0 4px 16px rgb(15 23 42 / 0.08);
+  --shadow-card: 0 2px 12px rgb(15 23 42 / 0.06);
+  --shadow-brand: 0 4px 14px rgb(13 148 136 / 0.25);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
-}
-
+/* 氛围层：极浅冷调渐变底（< 3%） */
 body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgb(13 148 136 / 0.035), transparent 70%),
+    #f8fafc;
+  background-attachment: fixed;
+  color: #0f172a;
+  min-height: 100vh;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-} */
+/* ::selection 定制：teal-tinted */
+::selection {
+  background: rgb(13 148 136 / 0.15);
+  color: #0f766e;
+}
+
+/* ========== 自定义滚动条：细窄 + teal-tinted ========== */
 ::-webkit-scrollbar {
-  width: 5px; /* 设置滚动条宽度 */
+  width: 8px;
+  height: 8px;
 }
-
-/* 滚动条轨道 */
 ::-webkit-scrollbar-track {
-  background-color: #ffffff; /* 设置滚动条轨道的背景颜色 */
+  background: transparent;
 }
-
-/* 滚动条滑块 */
 ::-webkit-scrollbar-thumb {
-  background-color: #c2c2c2; /* 设置滚动条滑块的背景颜色 */
-  border-radius: 10px; /* 设置滚动条滑块的圆角 */
+  background: rgb(13 148 136 / 0.25);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(13 148 136 / 0.45);
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(13 148 136 / 0.25) transparent;
 }
 
-
-/* 滚动条容器 */
-.overflow-container {
-  overflow-y: auto; /* 显示垂直滚动条 */
-  /* max-height: 200px; */
+/* ========== 品牌 focus 环 ========== */
+*:focus-visible {
+  outline: 2px solid rgb(13 148 136 / 0.5);
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 
-/* 滚动条样式 */
-.overflow-container::-webkit-scrollbar {
-  width: 10px; /* 设置滚动条宽度 */
-  background-color: #f5f5f5; /* 设置滚动条背景色 */
+/* ========== 按压反馈：所有交互元素 ========== */
+button,
+a,
+[role="button"],
+input[type="checkbox"],
+label.autoSaverSwitch {
+  transition: transform 100ms var(--ease-out), background-color 150ms var(--ease-out),
+    border-color 150ms var(--ease-out), color 150ms var(--ease-out),
+    box-shadow 150ms var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  button:active,
+  a:active,
+  [role="button"]:active {
+    transform: scale(0.97);
+  }
 }
 
-/* 滚动条轨道 */
-.overflow-container::-webkit-scrollbar-track {
-  background-color: #f5f5f5; /* 设置滚动条轨道背景色 */
+/* ========== Toast 主题微调：teal success ========== */
+.Toastify__toast--success {
+  border-left: 3px solid #0d9488;
+}
+.Toastify__progress-bar--success {
+  background: #0d9488 !important;
 }
 
-/* 滚动条滑块 */
-.overflow-container::-webkit-scrollbar-thumb {
-  background-color: #888; /* 设置滚动条滑块背景色 */
-  border-radius: 4px; /* 设置滑块圆角 */
+/* ========== 减弱动效兜底 ========== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
-/* 鼠标悬停在滑块上的样式 */
-.overflow-container::-webkit-scrollbar-thumb:hover {
-  background-color: #555; /* 设置滑块悬停时的背景色 */
+/* ========== 工具类 ========== */
+.text-balance {
+  text-wrap: balance;
+}
+
+/* 文件卡 hover 微浮（仅真指针设备） */
+.np-file-card {
+  transition: transform 150ms var(--ease-out), box-shadow 150ms var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .np-file-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgb(15 23 42 / 0.1);
+  }
 }
