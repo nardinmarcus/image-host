@@ -82,10 +82,11 @@ export async function GET(request) {
 - middleware：`/api/enableauthapi/r2|tgchannel` 始终 401（不依赖 `ENABLE_AUTH_API`）；`isauth` 仍可匿名探测
 - 生产：未登录 POST r2/tgchannel → 401；isauth 仍 200；admin 仍 401
 
-### 已完成 · 首页 SSR 边界（本轮）
+### 已完成 · 首页 SSR 边界（commit `0fbc88a`，生产已验证）
 - `src/app/page.js`：edge RSC，服务端取 `countImgInfo` + IP headers + `auth()` session
 - `src/components/HomeClient.jsx`：纯交互层，props 注入 total/ip/role；上传成功本地 +total
 - 首屏不再请求 `/api/total`、`/api/ip`、`/api/enableauthapi/isauth`
+- 生产 SSR HTML 已内嵌 total（如 129）与客户端 IP，未登录仍显示「需登录后上传」
 
 ### 下一步（按优先级）
 1. **tgchannel audio/pdf 收窄**（MIME 只放行 image/video，fileTypeMap 仍写 audio/pdf）：需用户确认是否放宽
