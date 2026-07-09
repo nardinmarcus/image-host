@@ -2,6 +2,7 @@
 
 import { signOut } from 'next-auth/react';
 import AdminTable from '@/components/AdminTable';
+import AdminApiKeys from '@/components/AdminApiKeys';
 import { useState, useEffect, useCallback } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import Link from 'next/link';
@@ -32,6 +33,7 @@ const NAV = [
   { id: 'list', label: '资源' },
   { id: 'log', label: '访问日志' },
   { id: 'stats', label: '概览' },
+  { id: 'apikeys', label: 'API' },
 ];
 
 const STORAGE_CHIPS = [
@@ -75,7 +77,7 @@ export default function Admin() {
 
   const getListdata = useCallback(
     async (page) => {
-      if (view === 'stats') return;
+      if (view === 'stats' || view === 'apikeys') return;
       setLoading(true);
       try {
         const res = await fetch(`/api/admin/${view}`, {
@@ -107,7 +109,7 @@ export default function Admin() {
   );
 
   useEffect(() => {
-    if (view !== 'stats') getListdata(currentPage);
+    if (view !== 'stats' && view !== 'apikeys') getListdata(currentPage);
   }, [currentPage, view, getListdata]);
 
   // 筛选变化时回第一页
@@ -234,9 +236,10 @@ export default function Admin() {
             {view === 'list' && '资源中心'}
             {view === 'log' && '访问日志'}
             {view === 'stats' && '概览统计'}
+            {view === 'apikeys' && 'API 管理与文档'}
           </div>
           <div className="flex items-center gap-2">
-            {view !== 'stats' && (
+            {view !== 'stats' && view !== 'apikeys' && (
               <form onSubmit={handleSearch} className="flex items-center gap-2">
                 <input
                   type="search"
@@ -265,7 +268,9 @@ export default function Admin() {
 
         <main className="flex-1 min-h-0 overflow-y-auto p-4 pb-24 w-full">
           <div className="max-w-7xl mx-auto">
-          {view === 'stats' ? (
+          {view === 'apikeys' ? (
+            <AdminApiKeys />
+          ) : view === 'stats' ? (
             <div className="space-y-4">
               <p className="text-sm text-stone-500">访问 Top 20（可后续点穿筛选）</p>
               {statsData ? (
@@ -339,7 +344,7 @@ export default function Admin() {
           </div>
         </main>
 
-        {view !== 'stats' && (
+        {view !== 'stats' && view !== 'apikeys' && (
           <div className="fixed inset-x-0 bottom-0 h-14 border-t border-stone-200 bg-white/95 backdrop-blur flex items-center justify-center z-30">
             <div className="flex items-center gap-3 text-sm">
               <button

@@ -72,13 +72,20 @@ export function extFromMimeOrName(mime, name = '') {
   return 'bin';
 }
 
-/** R2：图片/视频 + 办公文档/EPUB（不含 PDF——PDF 仍走 TG） */
+/** R2：图片/视频/音频/PDF + 办公文档（API 与可删存储统一走 R2） */
 export function isAllowedR2Mime(mime) {
   return (
     mime.startsWith('image/') ||
     mime.startsWith('video/') ||
+    mime.startsWith('audio/') ||
+    TG_ONLY_DOC_MIMES.has(mime) ||
     DOC_MIMES.has(mime)
   );
+}
+
+/** 开放 API 上传白名单（与 R2 一致） */
+export function isAllowedApiMime(mime) {
+  return isAllowedR2Mime(mime);
 }
 
 /** TG：图片/视频/音频/PDF + 同上文档 */

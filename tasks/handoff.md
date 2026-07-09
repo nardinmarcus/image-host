@@ -120,9 +120,16 @@ export async function GET(request) {
 - 筛选优先 `kind`/`mime`，仅旧数据无元数据时回退 URL 扩展名
 - 启动时 `ensureImginfoMetaColumns`：ALTER 加列 + 回填空 kind（最多 500/次）
 
+### 已完成 · 开放 API（Base URL + API Key）
+- `POST /api/v1/upload`：`Authorization: Bearer ih_…` 或 `X-API-Key`
+- 密钥存 D1 `api_keys`（仅 SHA-256，明文创建时显示一次）
+- 后台侧栏 **API**：创建/禁用/删除 + 内嵌文档（curl / n8n）
+- 上传写入 R2 + imginfo，后台「资源」可见
+- 共享逻辑：`src/lib/uploadR2.js`、`src/lib/apiKeys.js`
+
 ### 下一步（按优先级）
 1. 后台 P2：URL 同步筛选、详情抽屉增强、批量操作、统计点穿
-2. **（可选）历史 time 迁移脚本**
+2. API：按 key 限流、上传日志、可选 TG storage 参数
 3. **清理残留 console / 死代码**（含旧 Table.jsx）
 
 ### 风险高（单独做）

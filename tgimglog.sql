@@ -23,3 +23,13 @@ CREATE TABLE IF NOT EXISTS imginfo (
 -- ALTER TABLE imginfo ADD COLUMN mime TEXT;
 -- ALTER TABLE imginfo ADD COLUMN kind TEXT;
 
+CREATE TABLE IF NOT EXISTS api_keys (
+	id integer PRIMARY KEY AUTOINCREMENT,
+	name text NOT NULL,
+	key_prefix text NOT NULL,
+	key_hash text NOT NULL UNIQUE,
+	enabled integer NOT NULL DEFAULT 1,
+	created_at text,
+	last_used_at text
+);
+

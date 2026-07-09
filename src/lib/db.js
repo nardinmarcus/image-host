@@ -199,3 +199,68 @@ export async function getTopStats(env, field, limit = 20) {
     .all();
   return results;
 }
+
+// —— API Keys ——
+export async function ensureApiKeysTable(env) {
+  if (!env?.IMG) return;
+  await env.IMG.prepare(`
+    CREATE TABLE IF NOT EXISTS api_keys (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      key_prefix TEXT NOT NULL,
+      key_hash TEXT NOT NULL UNIQUE,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT,
+      last_used_at TEXT
+    )
+  `).run();
+}
+
+export async function listApiKeys(env) {
+  await ensureApiKeysTable(env);
+  const { results } = await env.IMG.prepare(
+    'SELECT id, name, key_prefix, enabled, created_at, last_used_at FROM api_keys ORDER BY id DESC'
+  ).all();
+  return results || [];
+}
+
+export async function createApiKey(env, { name, keyPrefix, keyHash, createdAt }) {
+  await ensureApiKeysTable(env);
+  return env.IMG.prepare(
+    'INSERT INTO api_keys (name, key_prefix, key_hash, enabled, created_at) VALUES (?, ?, ?, 1, ?)'
+  )
+    .bind(name, keyPrefix, keyHash, createdAt)
+    .run();
+}
+
+export async function setApiKeyEnabled(env, id, enabled) {
+  await ensureApiKeysTable(env);
+  return env.IMG.prepare('UPDATE api_keys SET enabled = ? WHERE id = ?')
+    .bind(enabled ? 1 : 0, id)
+    .run();
+}
+
+export async function deleteApiKey(env, id) {
+  await ensureApiKeysTable(env);
+  return env.IMG.prepare('DELETE FROM api_keys WHERE id = ?').bind(id).run();
+}
+
+/** 用 hash 查有效密钥；命中则更新 last_used_at */
+export async function findEnabledApiKeyByHash(env, keyHash) {
+  await ensureApiKeysTable(env);
+  const row = await env.IMG.prepare(
+    'SELECT id, name, enabled FROM api_keys WHERE key_hash = ? AND enabled = 1'
+  )
+    .bind(keyHash)
+    .first();
+  if (!row) return null;
+  try {
+    const now = new Date().toISOString();
+    await env.IMG.prepare('UPDATE api_keys SET last_used_at = ? WHERE id = ?')
+      .bind(now, row.id)
+      .run();
+  } catch {
+    /* ignore */
+  }
+  return row;
+}
