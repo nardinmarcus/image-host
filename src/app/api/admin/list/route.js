@@ -12,8 +12,10 @@ export async function POST(request) {
   }
   const { env } = getRequestContext();
   try {
-    let { page, query } = await request.json();
-    const { results, total } = await searchImgInfo(env, query, page);
+    const body = await request.json();
+    const { page, query, storage, kind, blocked } = body || {};
+    const filters = { storage, kind, blocked };
+    const { results, total } = await searchImgInfo(env, query, page, filters);
     return jsonOk({ data: results, page, total });
   } catch (error) {
     console.error('admin/list error:', error);

@@ -109,9 +109,16 @@ export async function GET(request) {
 - 前端：选 PDF/音频/办公文档/EPUB 时**自动切 TG_Channel**，才会出现在 Telegram 频道
 - 上限 20MB
 
+### 已完成 · 后台 A+C 混合（本轮）
+- IA：侧栏「资源 / 访问日志 / 概览」+ 顶栏搜索
+- 筛选：来源 R2/TG、类型 图/视/音/文档、拉黑状态（`searchImgInfo`/`searchLogs` filters）
+- 资源页：列表（A）↔ 网格（C）切换；文档徽章；TG 删除确认文案
+- 组件：`AdminTable`、`mediaMeta.js`；旧 `Table.jsx` 已无引用可后续删
+
 ### 下一步（按优先级）
-1. **（可选）历史 time 迁移脚本**：中文日期 → ISO（D1 不可逆，需备份后批处理）
-2. **清理残留 console / 死代码**（低优先级）
+1. 后台 P2：URL 同步筛选、详情抽屉增强、批量操作、统计点穿
+2. **（可选）历史 time 迁移脚本**
+3. **清理残留 console / 死代码**（含旧 Table.jsx）
 
 ### 风险高（单独做）
 3. **迁移 OpenNext**（`@cloudflare/next-on-pages` 已于 2025-09-29 归档）：要改 15+ route + 去掉 `runtime = 'edge'` + middleware 兼容 + 构建重做。**单独完整周期**

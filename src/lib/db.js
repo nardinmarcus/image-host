@@ -2,12 +2,47 @@
 // 替换散落在 13 个路由里的 insertImgInfo / getRating / insertTgImgLog 等重复函数
 // 参考: file/[name]/route.js:117-121 已有的正确 .bind() 写法
 
-const PAGE_SIZE = 10;
+import { kindExtList } from '@/lib/mediaMeta';
+
+const PAGE_SIZE = 12;
 
 // 分页参数校验：非负整数，否则回退 0
 function toPage(v) {
   const n = Number(v);
   return Number.isInteger(n) && n >= 0 ? n : 0;
+}
+
+/**
+ * 构建列表筛选 WHERE（全字面量白名单，无用户串直接拼列名）
+ * filters: { storage?: 'r2'|'tg'|'file', kind?: 'image'|'video'|'audio'|'doc', blocked?: 'yes'|'no' }
+ */
+function buildImgFilters(query, filters = {}, urlColumn = 'url') {
+  const where = [];
+  const binds = [];
+
+  if (query) {
+    where.push(`${urlColumn} LIKE ?`);
+    binds.push(`%${query}%`);
+  }
+
+  const storage = filters.storage;
+  if (storage === 'r2') where.push(`${urlColumn} LIKE '/rfile/%'`);
+  else if (storage === 'tg') where.push(`${urlColumn} LIKE '/cfile/%'`);
+  else if (storage === 'file') where.push(`${urlColumn} LIKE '/file/%'`);
+
+  const kind = filters.kind;
+  const exts = kindExtList(kind);
+  if (exts.length) {
+    // 扩展名白名单 → LIKE '%.png' OR ...
+    where.push(`(${exts.map(() => `lower(${urlColumn}) LIKE ?`).join(' OR ')})`);
+    for (const e of exts) binds.push(`%.${e}`);
+  }
+
+  if (filters.blocked === 'yes') where.push('rating = 3');
+  else if (filters.blocked === 'no') where.push('(rating IS NULL OR rating != 3)');
+
+  const sqlWhere = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  return { sqlWhere, binds };
 }
 
 // 插入图片元信息
@@ -45,44 +80,44 @@ export async function deleteImgInfo(env, url) {
   return env.IMG.prepare('DELETE FROM imginfo WHERE url = ?').bind(url).run();
 }
 
-// 图片列表（带搜索），返回 { results, total }
-// 注：原 admin/list 有 query 分支无 ORDER BY，分页结果不确定，这里统一加 ORDER BY id DESC 修复
-export async function searchImgInfo(env, query, page) {
+// 图片列表（搜索 + 筛选），返回 { results, total }
+export async function searchImgInfo(env, query, page, filters = {}) {
   const offset = toPage(page) * PAGE_SIZE;
-  if (query) {
-    const like = `%${query}%`;
-    const { results } = await env.IMG.prepare(
-      'SELECT * FROM imginfo WHERE url LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?'
-    ).bind(like, PAGE_SIZE, offset).all();
-    const total = await env.IMG.prepare(
-      'SELECT COUNT(*) as total FROM imginfo WHERE url LIKE ?'
-    ).bind(like).first();
-    return { results, total: total.total };
-  }
-  const { results } = await env.IMG.prepare(
-    'SELECT * FROM imginfo ORDER BY id DESC LIMIT ? OFFSET ?'
-  ).bind(PAGE_SIZE, offset).all();
-  const total = await env.IMG.prepare('SELECT COUNT(*) as total FROM imginfo').first();
+  const { sqlWhere, binds } = buildImgFilters(query, filters, 'url');
+  const listSql = `SELECT * FROM imginfo ${sqlWhere} ORDER BY id DESC LIMIT ? OFFSET ?`;
+  const countSql = `SELECT COUNT(*) as total FROM imginfo ${sqlWhere}`;
+  const { results } = await env.IMG.prepare(listSql).bind(...binds, PAGE_SIZE, offset).all();
+  const total = await env.IMG.prepare(countSql).bind(...binds).first();
   return { results, total: total.total };
 }
 
-// 访问日志列表（JOIN imginfo，带搜索），返回 { results, total }
-export async function searchLogs(env, query, page) {
+// 访问日志列表（JOIN imginfo，搜索 + 筛选），返回 { results, total }
+export async function searchLogs(env, query, page, filters = {}) {
   const offset = toPage(page) * PAGE_SIZE;
+  // 日志表筛选 url 列加前缀，rating 在 imginfo
+  const where = [];
+  const binds = [];
   if (query) {
-    const like = `%${query}%`;
-    const { results } = await env.IMG.prepare(
-      'SELECT tgimglog.*, imginfo.rating, imginfo.total FROM tgimglog JOIN imginfo ON tgimglog.url = imginfo.url WHERE tgimglog.url LIKE ? ORDER BY tgimglog.id DESC LIMIT ? OFFSET ?'
-    ).bind(like, PAGE_SIZE, offset).all();
-    const total = await env.IMG.prepare(
-      'SELECT COUNT(*) as total FROM tgimglog WHERE url LIKE ?'
-    ).bind(like).first();
-    return { results, total: total.total };
+    where.push('tgimglog.url LIKE ?');
+    binds.push(`%${query}%`);
   }
-  const { results } = await env.IMG.prepare(
-    'SELECT tgimglog.*, imginfo.rating, imginfo.total FROM tgimglog JOIN imginfo ON tgimglog.url = imginfo.url ORDER BY tgimglog.id DESC LIMIT ? OFFSET ?'
-  ).bind(PAGE_SIZE, offset).all();
-  const total = await env.IMG.prepare('SELECT COUNT(*) as total FROM tgimglog').first();
+  if (filters.storage === 'r2') where.push("tgimglog.url LIKE '/rfile/%'");
+  else if (filters.storage === 'tg') where.push("tgimglog.url LIKE '/cfile/%'");
+  else if (filters.storage === 'file') where.push("tgimglog.url LIKE '/file/%'");
+
+  const exts = kindExtList(filters.kind);
+  if (exts.length) {
+    where.push(`(${exts.map(() => 'lower(tgimglog.url) LIKE ?').join(' OR ')})`);
+    for (const e of exts) binds.push(`%.${e}`);
+  }
+  if (filters.blocked === 'yes') where.push('imginfo.rating = 3');
+  else if (filters.blocked === 'no') where.push('(imginfo.rating IS NULL OR imginfo.rating != 3)');
+
+  const sqlWhere = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const listSql = `SELECT tgimglog.*, imginfo.rating, imginfo.total FROM tgimglog JOIN imginfo ON tgimglog.url = imginfo.url ${sqlWhere} ORDER BY tgimglog.id DESC LIMIT ? OFFSET ?`;
+  const countSql = `SELECT COUNT(*) as total FROM tgimglog JOIN imginfo ON tgimglog.url = imginfo.url ${sqlWhere}`;
+  const { results } = await env.IMG.prepare(listSql).bind(...binds, PAGE_SIZE, offset).all();
+  const total = await env.IMG.prepare(countSql).bind(...binds).first();
   return { results, total: total.total };
 }
 
