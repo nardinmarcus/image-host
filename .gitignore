@@ -46,3 +46,7 @@ next-env.d.ts
 
 app/deva
 src/app/deva/*
+
+# local-only working notes & design previews
+/tasks/
+/design-previews/
