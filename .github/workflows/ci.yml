@@ -19,3 +19,4 @@ jobs:
       - run: npm run lint
         env:
           NEXT_TELEMETRY_DISABLED: '1'
+      - run: npm run verify:p0-p1

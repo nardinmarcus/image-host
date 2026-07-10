@@ -14,7 +14,7 @@ function includesAll(text, values, path) {
   }
 }
 
-const [home, panel, queue, links, rfile, cfile, db, migration, upload] = await Promise.all([
+const [home, panel, queue, links, rfile, cfile, db, migration, upload, apiKeysRoute, adminApiKeys] = await Promise.all([
   source('src/components/HomeClient.jsx'),
   source('src/components/UploadPanel.jsx'),
   source('src/components/UploadQueue.jsx'),
@@ -24,6 +24,8 @@ const [home, panel, queue, links, rfile, cfile, db, migration, upload] = await P
   source('src/lib/db.js'),
   source('migrations/0001_media_indexes.sql'),
   source('src/app/api/enableauthapi/r2/route.js'),
+  source('src/app/api/admin/apikeys/route.js'),
+  source('src/components/AdminApiKeys.jsx'),
 ]);
 
 includesAll(home, ['uploadWithProgress', 'runWithConcurrency', 'selectedStorage', 'status: "error"'], 'HomeClient');
@@ -48,5 +50,10 @@ includesAll(migration, [
   'idx_tgimglog_url_id',
 ], 'migration');
 includesAll(upload, ['httpMetadata: { contentType:', "console.error('Failed to store R2 upload'"], 'R2 upload route');
+assert.ok(
+  !apiKeysRoute.includes('ensureApiKeysTable'),
+  'API key route must rely on versioned migrations instead of runtime schema setup',
+);
+includesAll(adminApiKeys, ['loadFailed', 'API Key 加载失败', '重新加载'], 'AdminApiKeys');
 
 console.log('P0/P1 source contracts verified.');

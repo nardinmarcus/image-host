@@ -10,6 +10,7 @@ import { formatTimeDisplay } from '@/lib/time';
 export default function AdminApiKeys() {
   const [keys, setKeys] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [name, setName] = useState('');
   const [newKey, setNewKey] = useState(null); // 刚创建的明文
   const [creating, setCreating] = useState(false);
@@ -19,12 +20,17 @@ export default function AdminApiKeys() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    setLoadFailed(false);
     try {
       const res = await fetch('/api/admin/apikeys');
       const data = await res.json();
       if (data?.success) setKeys(data.data || []);
-      else toast.error(data?.message || '加载失败');
+      else {
+        setLoadFailed(true);
+        toast.error(data?.message || '加载失败');
+      }
     } catch (e) {
+      setLoadFailed(true);
       toast.error(e.message);
     } finally {
       setLoading(false);
@@ -150,6 +156,18 @@ export default function AdminApiKeys() {
 
         {loading ? (
           <p className="text-sm text-stone-400">加载中…</p>
+        ) : loadFailed ? (
+          <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+            <p className="text-sm font-medium text-red-800">API Key 加载失败</p>
+            <p className="mt-1 text-sm text-red-700">无法读取现有密钥，请稍后重试。</p>
+            <button
+              type="button"
+              onClick={load}
+              className="mt-3 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-800 hover:bg-red-100"
+            >
+              重新加载
+            </button>
+          </div>
         ) : keys.length === 0 ? (
           <p className="text-sm text-stone-400 py-6 text-center">暂无 API Key，先创建一个</p>
         ) : (

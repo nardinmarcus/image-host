@@ -95,6 +95,15 @@
 - 部署：push main → CF check-runs `completed/success`  
 - 勿本地 `next build`（Node 22 + Next 14）
 
+## Hotfix · API Key 列表回归（2026-07-10）
+
+- [x] 删除 API Key 路由对已移除运行时建表函数的引用
+- [x] 列表加载失败时显示错误态，不再误报“暂无 API Key”
+- [x] 增加 source-contract 回归检查并接入 CI
+- [x] lint 与 source contract 通过
+- [ ] 提交、推送并确认 Cloudflare Pages 生产部署成功
+- [ ] 生产 API 页面重新显示已有 Key
+
 ---
 
 ## 阶段 7 验收记录（2026-07-10）

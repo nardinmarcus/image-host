@@ -8,7 +8,6 @@ import {
   createApiKey,
   setApiKeyEnabled,
   deleteApiKey,
-  ensureApiKeysTable,
 } from '@/lib/db';
 import { jsonOk, jsonErr } from '@/lib/http';
 import { nowTime } from '@/lib/time';
@@ -24,7 +23,6 @@ export async function GET() {
   if (!(await requireAdmin())) return jsonErr('forbidden', 403);
   const { env } = getRequestContext();
   try {
-    await ensureApiKeysTable(env);
     const keys = await listApiKeys(env);
     return jsonOk({ data: keys });
   } catch (e) {
