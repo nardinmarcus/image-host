@@ -101,8 +101,16 @@
 - [x] 列表加载失败时显示错误态，不再误报“暂无 API Key”
 - [x] 增加 source-contract 回归检查并接入 CI
 - [x] lint 与 source contract 通过
-- [ ] 提交、推送并确认 Cloudflare Pages 生产部署成功
-- [ ] 生产 API 页面重新显示已有 Key
+- [x] 提交、推送并确认 Cloudflare Pages 生产部署成功
+- [x] 生产 API 页面重新显示已有 Key
+
+### Review
+
+- 根因：阶段 7 移除运行时 DDL 时，API Key 路由遗留了对 `ensureApiKeysTable` 的导入与调用。
+- 修复：路由改为只读取 migration 管理的表；前端区分加载失败与真实空列表，并提供重试入口。
+- 验证：`npm run lint`、`npm run verify:p0-p1`、`git diff --check`、GitHub CI 与 Cloudflare Pages check-run 全部通过。
+- 生产验收：刷新 `/admin?view=apikeys` 后，已有 `agent_skills` Key 正常显示为启用，无 `internal error`。
+- 后续风险：生产后台仍有本次修复前已存在的 React hydration 控制台错误，需单独排查。
 
 ---
 
