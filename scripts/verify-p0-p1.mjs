@@ -54,6 +54,27 @@ assert.ok(
   !apiKeysRoute.includes('ensureApiKeysTable'),
   'API key route must rely on versioned migrations instead of runtime schema setup',
 );
-includesAll(adminApiKeys, ['loadFailed', 'API Key 加载失败', '重新加载'], 'AdminApiKeys');
+includesAll(adminApiKeys, [
+  'loadFailed',
+  'API Key 加载失败',
+  '重新加载',
+  'API 工作台',
+  '只显示一次',
+  'Authorization: Bearer',
+  'X-API-Key',
+  'multipart/form-data',
+  'file',
+  'image',
+  'media',
+  '20MB',
+  'n8n / Make',
+  'scope="col"',
+  'lg:hidden',
+], 'AdminApiKeys');
+assert.ok(!adminApiKeys.includes('prose prose-'), 'AdminApiKeys must not rely on an unconfigured typography plugin');
+assert.ok(
+  !adminApiKeys.includes('\\n+  -H') && !adminApiKeys.includes('\\n+  -F'),
+  'AdminApiKeys curl example must not include diff markers',
+);
 
 console.log('P0/P1 source contracts verified.');
