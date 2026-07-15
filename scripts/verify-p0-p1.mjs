@@ -28,9 +28,18 @@ const [home, panel, queue, links, rfile, cfile, db, migration, upload, apiKeysRo
   source('src/components/AdminApiKeys.jsx'),
 ]);
 
-includesAll(home, ['uploadWithProgress', 'runWithConcurrency', 'selectedStorage', 'status: "error"'], 'HomeClient');
+includesAll(home, [
+  'uploadWithProgress',
+  'runWithConcurrency',
+  'selectedStorage',
+  'status: "error"',
+  'window.addEventListener("paste", handlePaste)',
+  'window.removeEventListener("paste", handlePaste)',
+], 'HomeClient');
 includesAll(panel, ['登录后即可上传', '登录后上传'], 'UploadPanel');
 includesAll(queue, ['type="button"', '点击、拖拽或粘贴文件到上传队列', '重试'], 'UploadQueue');
+assert.ok(!panel.includes('onPaste'), 'UploadPanel must not forward a second paste handler');
+assert.ok(!queue.includes('onPaste'), 'UploadQueue must rely on the single page-level paste handler');
 includesAll(links, ['navigator.clipboard.writeText', '复制全部', 'Markdown'], 'ResultLinks');
 
 for (const [path, route] of [['rfile', rfile], ['cfile', cfile]]) {

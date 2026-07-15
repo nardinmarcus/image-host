@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { signOut } from "next-auth/react";
 import { ToastContainer, toast } from "react-toastify";
 import Link from "next/link";
@@ -120,7 +120,7 @@ export default function HomeClient({
     );
   };
 
-  const addFiles = (fileList) => {
+  const addFiles = useCallback((fileList) => {
     const incoming = Array.from(fileList || []);
     if (!incoming.length) return;
 
@@ -137,7 +137,7 @@ export default function HomeClient({
       toast.info("已跳过重复文件");
     }
     setQueue((items) => [...items, ...uniqueFiles.map(newQueueItem)]);
-  };
+  }, [uploadedFiles]);
 
   const handleFileChange = (event) => {
     addFiles(event.target.files);
@@ -149,13 +149,30 @@ export default function HomeClient({
     addFiles(event.dataTransfer.files);
   };
 
-  const handlePaste = (event) => {
+  const handlePaste = useCallback((event) => {
+    const target = event.target;
+    if (
+      target instanceof HTMLElement &&
+      (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
+    ) {
+      return;
+    }
+
     const pastedFiles = Array.from(event.clipboardData?.items || [])
       .filter((item) => item.kind === "file")
       .map((item) => item.getAsFile())
       .filter(Boolean);
+    if (!pastedFiles.length) return;
+
+    event.preventDefault();
     addFiles(pastedFiles);
-  };
+  }, [addFiles]);
+
+  useEffect(() => {
+    if (!isAuth) return undefined;
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, [handlePaste, isAuth]);
 
   const handleRemove = (id) => {
     const item = queueRef.current.find((candidate) => candidate.id === id);
@@ -287,7 +304,6 @@ export default function HomeClient({
           fileInputRef={fileInputRef}
           onFileChange={handleFileChange}
           onDrop={handleDrop}
-          onPaste={handlePaste}
           onPreview={handlePreview}
           onRemove={handleRemove}
           onRetry={uploadItem}

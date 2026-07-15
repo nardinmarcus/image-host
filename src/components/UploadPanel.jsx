@@ -25,7 +25,6 @@ export default function UploadPanel({
   fileInputRef,
   onFileChange,
   onDrop,
-  onPaste,
   onPreview,
   onRemove,
   onRetry,
@@ -57,7 +56,6 @@ export default function UploadPanel({
             <UploadQueue
               queue={queue}
               onDrop={onDrop}
-              onPaste={onPaste}
               onOpenFilePicker={openFilePicker}
               onPreview={onPreview}
               onRemove={onRemove}

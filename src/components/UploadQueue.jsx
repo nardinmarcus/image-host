@@ -23,7 +23,7 @@ function fileLabel(file) {
   return '文件';
 }
 
-export default function UploadQueue({ queue, onDrop, onPaste, onOpenFilePicker, onPreview, onRemove, onRetry }) {
+export default function UploadQueue({ queue, onDrop, onOpenFilePicker, onPreview, onRemove, onRetry }) {
   const [isDragging, setIsDragging] = useState(false);
   const dragCounter = useRef(0);
   const empty = queue.length === 0;
@@ -54,7 +54,7 @@ export default function UploadQueue({ queue, onDrop, onPaste, onOpenFilePicker, 
   };
 
   return (
-    <div className={`relative rounded-3xl border-2 border-dashed bg-white p-5 transition-colors focus-visible:outline-none focus-visible:border-teal-400 focus-visible:ring-4 focus-visible:ring-teal-100 ${isDragging ? 'border-teal-500 bg-teal-50/50 ring-4 ring-teal-100' : 'border-slate-300 hover:border-slate-400'}`} onDrop={handleDrop} onDragOver={(event) => event.preventDefault()} onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onPaste={onPaste} onClick={empty ? onOpenFilePicker : undefined} onKeyDown={handleKeyDown} tabIndex={0} role="button" aria-label="点击、拖拽或粘贴文件到上传队列">
+    <div className={`relative rounded-3xl border-2 border-dashed bg-white p-5 transition-colors focus-visible:outline-none focus-visible:border-teal-400 focus-visible:ring-4 focus-visible:ring-teal-100 ${isDragging ? 'border-teal-500 bg-teal-50/50 ring-4 ring-teal-100' : 'border-slate-300 hover:border-slate-400'}`} onDrop={handleDrop} onDragOver={(event) => event.preventDefault()} onDragEnter={handleDragEnter} onDragLeave={handleDragLeave} onClick={empty ? onOpenFilePicker : undefined} onKeyDown={handleKeyDown} tabIndex={0} role="button" aria-label="点击、拖拽或粘贴文件到上传队列">
       {empty ? (
         <div className="flex h-52 flex-col items-center justify-center gap-2 px-6 text-center">
           <div className="mb-1 flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-50"><FontAwesomeIcon icon={faUpload} className="h-5 w-5 text-teal-600" /></div>
