@@ -262,9 +262,9 @@ export default function HomeClient({
   };
 
   return (
-    <main className="min-h-screen flex flex-col">
+    <main className="min-h-[100dvh] flex flex-col">
       <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/70 border-b border-slate-200/60">
-        <nav className="max-w-2xl mx-auto px-5 h-16 flex items-center justify-between">
+        <nav className="w-full max-w-6xl mx-auto px-5 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-teal-600 flex items-center justify-center text-white font-extrabold shadow-[0_2px_8px_rgb(13_148_136/0.3)]">N</div>
             <span className="text-lg font-extrabold tracking-tight text-slate-900">Namoo Pix</span>
@@ -273,7 +273,7 @@ export default function HomeClient({
         </nav>
       </header>
 
-      <div className="flex-1 w-full max-w-2xl mx-auto px-5 py-10">
+      <div className="flex-1 w-full max-w-6xl mx-auto px-5 sm:px-6 py-8 sm:py-10">
         <UploadPanel
           total={total}
           ip={initialIp}

@@ -18,7 +18,7 @@ export default function ProviderSelect({ value, onChange }) {
     <fieldset>
       <legend className="text-sm font-semibold text-slate-800">文件保存到哪里？</legend>
       <p className="mt-1 text-xs leading-relaxed text-slate-500">请选择与你的删除和留存需求一致的方式。</p>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
         {options.map((option) => {
           const selected = value === option.id;
           return (
